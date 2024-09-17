@@ -1,0 +1,128 @@
+/* Main flex container to hold the gallery and the word cloud */
+.gallery-container {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    gap: 20px;
+}
+
+/* Adjust the width of the gallery and word cloud */
+.portfolio-gallery {
+    width: calc(100% - 220px);
+    padding-right: 10px;
+}
+
+/* Word cloud sidebar (fixed width) */
+.word-cloud-sidebar {
+    width: 200px;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-left: 1px solid #e0e0e0;
+    box-sizing: border-box;
+    overflow-y: auto;
+    max-height: 90vh;
+}
+
+/* Word cloud styling */
+.word-cloud .word-filter {
+    display: inline-block;
+    margin: 3px 5px;
+    cursor: pointer;
+    color: #007bff;
+    text-transform: capitalize;
+    transition: color 0.3s;
+    white-space: nowrap;
+}
+
+.word-cloud .word-filter sup {
+    font-size: 10px;
+    color: #6c757d;
+}
+
+.word-cloud .word-filter:hover {
+    color: #0056b3;
+}
+
+.word-cloud .word-filter.active {
+    font-weight: bold;
+    color: #0056b3;
+}
+
+/* Main grid layout for images */
+.portfolio-item {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Adjust column size based on available space */
+    grid-gap: 10px; /* Adjust space between items */
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+/* Grid item styling */
+.item {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    height: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+}
+
+/* Image styling */
+.item img {
+    max-width: 100%;
+    height: auto;
+    object-fit: cover;
+    border-radius: 5px;
+}
+
+/* Magnific Popup caption styling */
+.mfp-title {
+    font-size: 14px;
+    color: #fff;
+    margin-top: 10px;
+    text-align: center;
+}
+div.mfp-figure img.mfp-img {
+    border-radius: 10px !important; /* Forces the border-radius to be applied */
+    max-width: 100%;
+    height: auto;
+}
+
+/* Footer styling */
+.footer {
+    text-align: center;
+    padding: 5px;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    font-size: 10px;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+}
+
+.footer a {
+    color: #007bff;
+    text-decoration: none;
+    font-size: 10px;
+}
+
+.footer a:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+/* Adjustments for small screens */
+@media (max-width: 768px) {
+    .portfolio-gallery {
+        width: 100%;
+    }
+    .word-cloud-sidebar {
+        display: none;
+    }
+}
