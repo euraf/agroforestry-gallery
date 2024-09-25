@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,31 +15,36 @@
     <section class="gallery-header text-center">
         <h1>Agroforestry Gallery</h1>
         <h4 class="subheading">Permanent Exposition</h4>
-        <p>Learn more about agroforestry and how you can participate in preserving our ecosystems. 
-            <a href="https://www.digitaf.eu/#" target="_blank">Click here to engage and participate.</a>
-        </p>
+        <p style="font-size:0.7em">Why permanent? Because these photos have a permalink source with a DOI. Click on each photo for details.</p>
     </section>
 
-    <!-- Gallery and Word Cloud Section -->
-    <div class="gallery-container d-flex">
-        <!-- Gallery Items (Left) -->
-        <div class="portfolio-gallery flex-grow-1">
-            <div id="gallery" class="portfolio-item row">
-                <!-- Images will be dynamically inserted here -->
-            </div>
-        </div>
+    <!-- Floating button on the top-left -->
+<button class="sticky-btn" id="open-filter">Filters</button>
 
-        <!-- Word Cloud (Right Sidebar) -->
-        <div class="word-cloud-sidebar">
-            <div id="word-cloud" class="word-cloud">
-                <!-- Word cloud filters will be dynamically inserted here -->
-            </div>
+
+    <!-- Off-Canvas Word Cloud Sidebar -->
+    <div class="offcanvas-wordcloud" id="wordcloudDrawer">
+        <div class="offcanvas-header">
+            <h5>Filter by Keywords</h5>
+            <button class="close-button" id="close-filter">&times;</button>
+        </div>
+        <div class="word-cloud" id="word-cloud">
+            <!-- Word cloud filters will be dynamically inserted here -->
         </div>
     </div>
 
+    <!-- Gallery Section -->
+    <div class="gallery-container d-flex">
+        <div id="gallery" class="portfolio-item row">
+            <!-- Gallery items will be dynamically inserted here -->
+        </div>
+    </div>
+    <!-- Loader -->
+    <div id="loader" class="loader" style="display:none;"></div>
     <!-- Sticky Footer Section -->
     <footer class="footer">
-        <p>Developed by MVARC - <a href="https://www.mvarc.eu" target="_blank">www.mvarc.eu</a></p>
+        <p>Under development by <a href="https://www.mvarc.eu" target="_blank">MVARC</a> under the EU Project <a href="https://www.mvarc.eu" target="_blank">DigitAF</a>
+        
     </footer>
 
     <!-- External JavaScript -->
