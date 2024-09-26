@@ -1,6 +1,14 @@
+const albumKeywords = [
+    "Silvopastoral", "Silvoarable", "Permanent crop", "Agro-silvo-pasture",
+    "Landscape features", "Urban agroforestry", "Wood pasture", "Tree alley cropping",
+    "Coppice alley cropping", "Multi-layer gardens (on agricultural land)",
+    "Orchard intercropping", "Orchard grazing", "Alternating cropping and grazing",
+    "Hedges, trees in groups, trees in lines, individual trees", "Forest grazing",
+    "Multi-layer gardens (on forest land)", "Homegardens, allotments, etc"
+];
+// Sanitize and store the keywords for case-insensitive comparison
+const albumKeywordsSanitized = albumKeywords.map(keyword => sanitizeKeyword(keyword));
 
-// llink to location in map:
-// https://www.google.com/maps/place/37°44'14.7"N+7°49'15.9"W/@37.737415,-7.8236673
 
 // Fetch data from Zenodo API
 async function fetchZenodoPhotos() {
@@ -25,6 +33,9 @@ async function fetchZenodoPhotos() {
 function buildGalleryAndWordCloud(photos) {
     const gallery = document.getElementById('gallery');
     const wordCloud = document.getElementById('word-cloud');
+    const explanationBox = document.createElement('div');
+    explanationBox.innerHTML = '<span class="explanation-box album-keyword"><strong>Bold</strong> and <span class="word-boxed">boxed</span> indicates an <a href="https://zenodo.org/doi/10.5281/zenodo.7953307" target="_blank">official EURAF agroforestry typology</a>. </span>';
+    wordCloud.before(explanationBox);  // Insert before the word cloud element
     let categories = {};
     let keywordMap = {}; // This will map original keywords to their sanitized versions
 
@@ -97,10 +108,12 @@ function buildGalleryAndWordCloud(photos) {
     });
 
     // Generate word cloud using the original keyword for display, but sanitized for filtering
-    wordCloud.innerHTML = `<span class="word-filter" data-filter="*">All <sup>${photos.length}</sup></span>`;
+    wordCloud.innerHTML = `<span class="word-filter" data-filter="*">All 📷 <sup>${photos.length}</sup></span>`;
     for (let sanitizedKeyword in categories) {
-        let originalKeyword = keywordMap[sanitizedKeyword]; // Get the original keyword
-        wordCloud.innerHTML += `<span class="word-filter" data-filter=".${sanitizedKeyword}">${originalKeyword} <sup>${categories[sanitizedKeyword]}</sup></span>`;
+        let originalKeyword = keywordMap[sanitizedKeyword];
+        let isAlbum = albumKeywordsSanitized.includes(sanitizedKeyword); // Use sanitized keywords for comparison
+        let additionalClass = isAlbum ? 'album-keyword' : '';  // Add 'album-keyword' class if it's an album
+        wordCloud.innerHTML += `<span class="word-filter ${additionalClass}" data-filter=".${sanitizedKeyword}">${originalKeyword} <sup>${categories[sanitizedKeyword]}</sup></span>`;
     }
 
     // Initialize Isotope and Magnific Popup

@@ -1,3 +1,20 @@
+.explanation-box{
+    font-size: 0.6em;
+}
+.word-boxed{
+    border: 1px solid rgb(225, 222, 222);
+}
+.word-filter {
+    cursor: pointer;
+    margin-right: 10px; /* Space between keywords */
+}
+
+.album-keyword {
+    font-weight: bold; /* Bold for special album keywords */
+    border: 1px solid rgb(225, 222, 222); /* Optional: boxed effect */
+    padding: 2px;
+}
+
 /* Filter Button styling */
 .filter-button {
     position: fixed;
@@ -65,7 +82,7 @@
 }
 
 .word-cloud .word-filter sup {
-    font-size: 10px;
+    font-size: 0.75em;
     color: #6c757d;
 }
 
@@ -76,6 +93,8 @@
 .word-cloud .word-filter.active {
     font-weight: bold;
     color: #0056b3;
+    background-color: #0056b373;
+
 }
 
 /* Main flex container to hold the gallery */
