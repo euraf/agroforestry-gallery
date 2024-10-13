@@ -1,6 +1,6 @@
-
+const footermessage = document.getElementById('footermessage');
 // Toggle cache-busting flag (set to true in development, false in production)
-const isCacheBustingEnabled = true;
+const isCacheBustingEnabled = false;
 // To collect problematic DOIs and image URLs
 const problematicPhotos = [];
 
@@ -32,6 +32,7 @@ async function fetchZenodoPhotos() {
         }
     }
     //console.log(allPhotos)
+    footermessage.innerHTML=" Fetched " + allPhotos.length + " photos from zenodo"
     return allPhotos; // Return all the photos
     
 }
@@ -54,6 +55,7 @@ async function buildGalleryAndWordCloud(photos) {
             const image_url_500 = `https://zenodo.org/api/iiif/record:${id}:${filename}/full/500,/0/default.png`;
             const doi_url = `https://www.doi.org/${photo.doi}`;
             const title = photo.metadata.title || 'Untitled';
+            footermessage.innerHTML= `Processing ${photo.title}`
 
             // Increment visualization counter if available
             if (photo.stats && photo.stats.views) {
@@ -116,15 +118,18 @@ async function buildGalleryAndWordCloud(photos) {
         } catch (error) {
             console.error(`Error processing photo: ${photo.id}`, error);
         }
+
     }
 
     // Build word cloud
+    
     wordCloud.innerHTML = `<span class="word-filter" data-filter="*">All 📷 <sup>${photos.length}</sup></span>`;
     for (const sanitizedKeyword in categories) {
         const originalKeyword = keywordMap[sanitizedKeyword];
         const isAlbum = albumKeywordsSanitized.includes(sanitizedKeyword);
         const additionalClass = isAlbum ? 'album-keyword' : '';
         wordCloud.innerHTML += `<span class="word-filter ${additionalClass}" data-filter=".${sanitizedKeyword}">${originalKeyword} <sup>${categories[sanitizedKeyword]}</sup></span>`;
+        footermessage.innerHTML= `Building filter for ${originalKeyword}`
     }
 
     // Animate the visualization counter
@@ -134,6 +139,7 @@ async function buildGalleryAndWordCloud(photos) {
     // Initialize Isotope and Magnific Popup
     initIsotope();
     initMagnificPopup();
+    footermessage.innerHTML= ``
 }
 
 

@@ -1,0 +1,57 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agroforestry Gallery</title>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/magnific-popup.js/1.1.0/magnific-popup.css" />
+    <link rel="stylesheet" href="css/styles.css"> <!-- External CSS -->
+</head>
+<body>
+
+    <!-- Header Section -->
+    <section class="gallery-header text-center">
+        <h1>Agroforestry Gallery</h1>
+        <h4 class="subheading">Permanent Exposition</h4>
+        <p style="font-size:0.7em">Why permanent? Because these photos have a permalink source with a DOI. Click on each photo for details (all info, including coordinates is extracted from the DOI source).<br>&#127757; means that picture has coordinates (click for location in GMap)</p>
+    </section>
+
+    <!-- Floating button on the top-left -->
+<button class="sticky-btn" id="open-filter">Filters</button>
+
+
+    <!-- Off-Canvas Word Cloud Sidebar -->
+    <div class="offcanvas-wordcloud" id="wordcloudDrawer">
+        <div class="offcanvas-header">
+            <h5>Filter by Keywords</h5>
+            <button class="close-button" id="close-filter">&times;</button>
+        </div>
+        <div class="word-cloud" id="word-cloud">
+            <!-- Word cloud filters will be dynamically inserted here -->
+        </div>
+    </div>
+
+    <!-- Gallery Section -->
+    <div class="gallery-container d-flex">
+        <div id="gallery" class="portfolio-item row">
+            <!-- Gallery items will be dynamically inserted here -->
+        </div>
+    </div>
+    <!-- Loader -->
+    <div id="loader" class="loader" style="display:none;"></div>
+    <!-- Sticky Footer Section -->
+    <footer class="footer">
+        <p>Under development by <a href="https://www.mvarc.eu" target="_blank">MVARC</a> under the EU Project <a href="https://www.mvarc.eu" target="_blank">DigitAF</a>
+        
+    </footer>
+
+    <!-- External JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/magnific-popup.js/1.1.0/jquery.magnific-popup.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.isotope/3.0.6/isotope.pkgd.js"></script>
+    <script src="https://unpkg.com/imagesloaded@4/imagesloaded.pkgd.min.js"></script>
+    <script src="js/gallery.js"></script> <!-- External JavaScript -->
+</body>
+</html>

@@ -1,0 +1,72 @@
+*{
+	margin: 0px;
+	padding:0px;
+	box-sizing: border-box;
+}
+
+img{
+    max-width: 100%;
+    display: block;
+    height: auto;
+	border-radius:5px;
+}
+
+
+
+.grid-sizer,.grid-item{
+	width:100%;
+	margin: 0px;
+	padding:1px;
+	/* vertical-align: center; */
+	
+	
+}
+
+
+
+@media only screen and (max-width:350px){
+	
+		.grid-sizer,.grid-item{
+		width:50%;
+		margin: 0px;
+		vertical-align: center;
+		padding: 1px;
+		
+	}
+	#wordcloudDrawer {
+        display: block; /* Initially hide */
+    }
+    
+    #wordcloudDrawer.visible {
+        display: block; /* Show when it's toggled to visible */
+    }
+
+
+}
+
+@media only screen and (min-width: 350px) and (max-width: 767px) {
+	
+	.grid-sizer,.grid-item{
+	width:33.3%;
+	margin: 0px;
+	vertical-align: center;
+	padding: 1px;
+	
+}
+
+}
+
+
+
+@media only screen and (min-width:767px){
+	
+	.grid-sizer,.grid-item{
+	width:20%;
+	margin: 0px;
+	padding:0px;
+	vertical-align: center;
+	padding: 1px;
+	
+}
+
+}

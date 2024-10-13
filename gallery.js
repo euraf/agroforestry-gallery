@@ -1,24 +1,3 @@
-jQuery('#portfolio').mixItUp({  
-
-    selectors: {
-      target: '.tile',
-      filter: '.filter',
-      sort: '.sort-btn'
-    },
-    
-        animation: {
-        animateResizeContainer: false,
-        effects: 'fade scale'
-      }
-  
-  });
-
-  // Toggle cache-busting flag (set to true in development, false in production)
-const isCacheBustingEnabled = false;
-// To collect problematic DOIs and image URLs
-const problematicPhotos = [];
-
-let total_visualizations = 0;
 const albumKeywords = [
     "Silvopastoral", "Silvoarable", "Permanent crop", "Agro-silvo-pasture",
     "Landscape features", "Urban agroforestry", "Wood pasture", "Tree alley cropping",
@@ -30,8 +9,32 @@ const albumKeywords = [
 // Sanitize and store the keywords for case-insensitive comparison
 const albumKeywordsSanitized = albumKeywords.map(keyword => sanitizeKeyword(keyword));
 
+// Fetch photos and build the gallery on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    let photos = await fetchZenodoPhotos(); // Fetch photos from Zenodo
+    buildGalleryAndWordCloud(photos); // Build the gallery and word cloud
+    // Wait for all images to load before initializing Isotope
+    var $grid = $('.grid').imagesLoaded(function () {
+        $grid.isotope({
+            itemSelector: '.grid-item',
+            percentPosition: true,
+            masonry: {
+                columnWidth: '.grid-sizer' // Use the grid-sizer for column width
+            }
+        });
+    });
 
-// Fetch data from Zenodo API
+    // Filter items when button is clicked
+    $('.filter-button-group').on('click', 'button', function () {
+        var filterValue = $(this).attr('data-filter');
+        $grid.isotope({ filter: filterValue });
+    });
+});
+
+
+
+
+  // Fetch data from Zenodo API
 async function fetchZenodoPhotos() {
     let communities = ['euraf-media']; // Zenodo communities
     let allPhotos = [];
@@ -46,18 +49,18 @@ async function fetchZenodoPhotos() {
         }
     }
     //console.log(allPhotos)
+    footermessage.innerHTML=" Fetched " + allPhotos.length + " photos from zenodo"
     return allPhotos; // Return all the photos
     
 }
 
 async function buildGalleryAndWordCloud(photos) {
     let totalVisualizations = 0;
-    //const gallery = document.getElementById('gallery');//<div id="portfolio"> 
-    const gallery = document.getElementById('portfolio');
+    const gallery = document.getElementById('gallery');
     const wordCloud = document.getElementById('word-cloud');
     const explanationBox = document.createElement('div');
-    explanationBox.innerHTML = '<span class="explanation-box album-keyword"><strong>Bold</strong> and <span class="word-boxed">boxed</span> indicates an <a href="https://zenodo.org/doi/10.5281/zenodo.7953307" target="_blank">official EURAF agroforestry typology</a>.</span>';
-    //wordCloud.before(explanationBox); // Insert explanation before word cloud
+    explanationBox.innerHTML = '<span class="explanation-box "><strong>Bold</strong> and <span class="album-keyword">green</span> indicates an <a href="https://zenodo.org/doi/10.5281/zenodo.7953307" target="_blank">official EURAF agroforestry typology</a>.</span>';
+    wordCloud.before(explanationBox); // Insert explanation before word cloud
     let categories = {};
     let keywordMap = {}; // Map for sanitized keyword to original
 
@@ -69,6 +72,7 @@ async function buildGalleryAndWordCloud(photos) {
             const image_url_500 = `https://zenodo.org/api/iiif/record:${id}:${filename}/full/500,/0/default.png`;
             const doi_url = `https://www.doi.org/${photo.doi}`;
             const title = photo.metadata.title || 'Untitled';
+            footermessage.innerHTML= `Processing ${photo.title}`
 
             // Increment visualization counter if available
             if (photo.stats && photo.stats.views) {
@@ -109,15 +113,25 @@ async function buildGalleryAndWordCloud(photos) {
             }
 
             // Create the gallery item with lazy loading for the images
-            
+            // const item = `
+            //     <div class="item ${category_classes} col-lg-3 col-md-4 col-6 col-sm">
+            //         <a href="${image_url_500}" class="popup-btn" data-title="${title}" data-authors="${authors}" data-year="${year}" data-doi="${doi_url}">
+            //             <img class="img-fluid lazy" src="${image_url_500}" data-src="${image_url_500}" alt="${title}" loading="lazy">
+            //             ${htmlCoords} <!-- World icon with link -->
+            //         </a>
+            //     </div>`;
             const item = `
-                <div class="tile ${category_classes} ">
+                <div class="grid-item ${category_classes} ">
                     <a href="${image_url_500}" class="popup-btn" data-title="${title}" data-authors="${authors}" data-year="${year}" data-doi="${doi_url}">
-                        <img src="${image_url_500}" alt="${title}" >
+                        <img class="img-fluid lazy" src="${image_url_500}" data-src="${image_url_500}" alt="${title}" loading="lazy">
                         ${htmlCoords} <!-- World icon with link -->
                     </a>
                 </div>`;
             gallery.innerHTML += item;
+
+            // <div class="grid-item a">
+            //                 <img src="http://placehold.it/800x600" alt="">
+            //             </div>
 
             // Track categories for the word cloud
             if (photo.metadata.keywords) {
@@ -132,62 +146,84 @@ async function buildGalleryAndWordCloud(photos) {
         } catch (error) {
             console.error(`Error processing photo: ${photo.id}`, error);
         }
+
     }
 
     // Build word cloud
-    //wordCloud.innerHTML = `<span class="word-filter" data-filter="*">All 📷 <sup>${photos.length}</sup></span>`;
+    
+    wordCloud.innerHTML = `<button class="word-filter" data-filter="*">All 📷 <sup>${photos.length}</sup></button>`;
     for (const sanitizedKeyword in categories) {
         const originalKeyword = keywordMap[sanitizedKeyword];
         const isAlbum = albumKeywordsSanitized.includes(sanitizedKeyword);
         const additionalClass = isAlbum ? 'album-keyword' : '';
-       // wordCloud.innerHTML += `<span class="word-filter ${additionalClass}" data-filter=".${sanitizedKeyword}">${originalKeyword} <sup>${categories[sanitizedKeyword]}</sup></span>`;
+        // wordCloud.innerHTML += `<span class="word-filter ${additionalClass}" data-filter=".${sanitizedKeyword}">${originalKeyword} <sup>${categories[sanitizedKeyword]}</sup></span>`;
+        wordCloud.innerHTML += `<button class="word-filter ${additionalClass}" data-filter=".${sanitizedKeyword}">${originalKeyword} <sup>${categories[sanitizedKeyword]}</sup></button>`;
+        footermessage.innerHTML= `Building filter for ${originalKeyword}`
     }
 
-    // // Animate the visualization counter
-    // const counterElement = document.getElementById('visualization-count');
-    // animateCounter(counterElement, 0, totalVisualizations, 2000);
+    // Initialize Isotope after all items are added
+    var $grid = $('.grid').imagesLoaded(function () {
+        $grid.isotope({
+            itemSelector: '.grid-item',
+            percentPosition: true,
+            masonry: {
+                columnWidth: '.grid-sizer' // Ensure the columnWidth is set to .grid-sizer
+            }
+        });
+    });
 
-    // // Initialize Isotope and Magnific Popup
-    // initIsotope();
-    // initMagnificPopup();
+    // Event listener for dynamically generated word filters
+    $(document).on('click', '.word-filter', function () {
+        var filterValue = $(this).attr('data-filter');
+        $grid.isotope({ filter: filterValue });
+
+        // Mark the clicked filter as active
+        $('.word-filter').removeClass('active');
+        $(this).addClass('active');
+        // Close the word cloud on mobile if necessary
+        if (window.innerWidth <= 768) {
+            const wordcloudDrawer = document.getElementById('wordcloudDrawer');
+            wordcloudDrawer.classList.remove('visible');
+        }
+    });
+    // Animate the visualization counter
+    const counterElement = document.getElementById('visualization-count');
+    animateCounter(counterElement, 0, totalVisualizations, 2000);
+
+    
+    
+    initMagnificPopup();
+    footermessage.innerHTML= ``
 }
+
 function sanitizeKeyword(keyword) {
     return keyword
         .trim() // Remove leading/trailing spaces
         .replace(/[^a-zA-Z0-9]+/g, '') // Remove all non-alphanumeric characters (spaces, parentheses, etc.)
         .toLowerCase(); // Convert to lowercase
 }
-function BuildLink2Gmap(LonDD, LatDD){
-    // link syntax
-    //https://www.google.com/maps/place/37°44'14.7"N+7°49'15.9"W/@37.737415,-7.8236673
-    latDMS = ConvertDDToDMS(LatDD, false);
-    lonDMS = ConvertDDToDMS(LonDD, true);
-    str = "https://www.google.com/maps/place/"
-    
-    str1 = latDMS['deg']+"°"+latDMS['min']+"'"+latDMS['sec']+"''"+latDMS['dir']+"+"
-    str2 = lonDMS['deg']+"°"+lonDMS['min']+"'"+lonDMS['sec']+"''"+lonDMS['dir']+"/@"+LatDD+","+LonDD+",1000m"
-    str3 = str1.concat(str2) 
-    str4 = str.concat(str3)
-    //console.log(str4);
-    return str4;
-  }
-  function ConvertDDToDMS(D, lng) {
-    return {
-      dir: D < 0 ? (lng ? "W" : "S") : lng ? "E" : "N",
-      deg: 0 | (D < 0 ? (D = -D) : D),
-      min: 0 | (((D += 1e-9) % 1) * 60),
-      sec: (0 | (((D * 60) % 1) * 6000)) / 100,
-    };
-  }
-  function sanitizeKeyword(keyword) {
-    return keyword
-        .trim() // Remove leading/trailing spaces
-        .replace(/[^a-zA-Z0-9]+/g, '') // Remove all non-alphanumeric characters (spaces, parentheses, etc.)
-        .toLowerCase(); // Convert to lowercase
+
+
+// Escape special characters for Isotope filtering
+function escapeIsotopeFilterValue(value) {
+    return value.replace(/[\[\]!"#$%&'()*+,.\/:;<=>?@\\^`{|}~]/g, '\\$&');
 }
 
-// Fetch photos and build the gallery on page load
-document.addEventListener('DOMContentLoaded', async () => {
-    let photos = await fetchZenodoPhotos(); // Fetch photos from Zenodo
-    buildGalleryAndWordCloud(photos); // Build the gallery and word cloud
-});
+function initMagnificPopup() {
+    $('.popup-btn').magnificPopup({
+        type: 'image',
+        gallery: {
+            enabled: true
+        },
+        image: {
+            titleSrc: function(item) {
+                let title = item.el.attr('data-title');
+                let authors = item.el.attr('data-authors');
+                let year = item.el.attr('data-year');
+                let doi = item.el.attr('data-doi');
+                
+                return `${title} <br> <small>by ${authors} (${year})<br><a href="${doi}" target="_blank">Full resolution and source to cite:  ${doi}</a></small>`;
+            }
+        }
+    });
+}
