@@ -1,5 +1,38 @@
+:root {
+  --dark-blue: #253d5b;
+}
+
+/* Fonts */
+@font-face {
+	font-family: 'Segoe UI';
+	src: url('fonts/segoeui.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'Segoe UI';
+	src: url('fonts/segoeuib.ttf') format('truetype');
+  font-weight: bold;
+}
+
+/* Body and general text styles */
+* {
+  font-family: 'Segoe UI', sans-serif !important; /* Apply Segoe UI font globally */
+}
+
 .explanation-box{
     font-size: 0.6em;
+}
+
+.gallery-header h1 {
+    color: var(--dark-blue);
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.gallery-header h4 {
+    color: var(--dark-blue);
+    margin-bottom: 10px;
+    font-weight: bold;
+    font-style: italic;
 }
 
 
@@ -242,7 +275,7 @@ html,body {
 /* Sticky and floating button on top left */
 .sticky-btn {
     position: fixed; /* Keeps the button in place as the user scrolls */
-    top: 68px; /* Distance from the top of the screen */
+    top: 50px; /* Distance from the top of the screen */
     left: 20px; /* Distance from the left of the screen */
     background-color: #008b00; /* Button background color */
     color: white;
@@ -265,7 +298,7 @@ html,body {
 /* Add Photos Button styling (right side) */
 .sticky-btn-right {
     position: fixed;
-    top: 68px;
+    top: 50px;
     right: 20px;
     background-color: #008b00;
     color: white;
