@@ -32,27 +32,28 @@
     height: 100%;
     background-color: #f8f9fa;
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.3);
-    transition: right 0.3s ease; /* Slide in/out animation */
+    transition: left 0.3s ease; /* Slide in/out animation */
     z-index: 1001;
     padding: 5px;
     margin:0;
 }
 /* Word Cloud (left) */
 .offcanvas-wordcloud {
-    right: -300px; /* Initially off-screen */
-    max-height: 100vh; /* Set max height to 80% of the viewport */
-    overflow-y: auto; /* Enable vertical scrolling */
-    padding: 10px; /* Add some padding for spacing */
+    left: -300px; /* Initially off-screen */
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: 10px;
 }
 .offcanvas-wordcloud.visible {
-    right: 0; /* Slide the word cloud in */
+    left: 0; /* Slide the word cloud in */
 }
 /* Add Photos (right) */
 .offcanvas-add-photos {
     right: -300px; /* Initially off-screen */
+    transition: right 0.3s ease;
 }
 .offcanvas-add-photos.visible {
-    right: 0; /* Slide the Add Photos in */
+    right: 0;
 }
 /* Off-canvas header */
 .offcanvas-header {
