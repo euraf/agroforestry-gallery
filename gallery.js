@@ -150,15 +150,21 @@ async function buildGalleryAndWordCloud(photos) {
     }
 
     // Build word cloud
-    
+
     wordCloud.innerHTML = `<button class="word-filter" data-filter="*">All 📷 <sup>${photos.length}</sup></button>`;
-    for (const sanitizedKeyword in categories) {
+
+    // Get all sanitized keywords and sort them alphabetically
+    const sortedSanitizedKeywords = Object.keys(keywordMap).sort((a, b) => {
+        // Sort case-insensitive
+        return a.localeCompare(b, undefined, { sensitivity: 'base' });
+    });
+
+    for (const sanitizedKeyword of sortedSanitizedKeywords) {
         const originalKeyword = keywordMap[sanitizedKeyword];
         const isAlbum = albumKeywordsSanitized.includes(sanitizedKeyword);
         const additionalClass = isAlbum ? 'album-keyword' : '';
-        // wordCloud.innerHTML += `<span class="word-filter ${additionalClass}" data-filter=".${sanitizedKeyword}">${originalKeyword} <sup>${categories[sanitizedKeyword]}</sup></span>`;
         wordCloud.innerHTML += `<button class="word-filter ${additionalClass}" data-filter=".${sanitizedKeyword}">${originalKeyword} <sup>${categories[sanitizedKeyword]}</sup></button>`;
-        footermessage.innerHTML= `Building filter for ${originalKeyword}`
+        footermessage.innerHTML= `Building filter for ${originalKeyword}`;
     }
 
     // Initialize Isotope after all items are added
