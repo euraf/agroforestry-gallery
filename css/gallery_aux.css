@@ -29,6 +29,11 @@ html, body {
   padding: 0;
 }
 
+/* Wrapper to prevent content from going under the footer */
+#wrapper {
+  padding-bottom: 30px; /* Adjust to be greater than or equal to footer height */
+}
+
 /* Typography */
 .explanation-box {
   font-size: 0.6em;
@@ -475,4 +480,14 @@ img{
 	
 }
 
+}
+
+/* Extra space for pagination */
+.gallery-pagination {
+    padding-bottom: 30px; /* Extra space above footer */
+}
+.visualizations-counter {
+  background:#eafbe7;
+  border-left:4px solid #008b00;
+  padding-bottom: 30px; /* Extra space above footer */
 }

@@ -6,33 +6,55 @@ const albumKeywords = [
     "Hedges, trees in groups, trees in lines, individual trees", "Forest grazing",
     "Multi-layer gardens (on forest land)", "Homegardens, allotments, etc"
 ];
+var currentPage = 1; // Initialize current page
+const photosPerPage = 30; // Number of photos to fetch per page
 // Sanitize and store the keywords for case-insensitive comparison
+var photos = []
+var totalVisualizations = 0
 const albumKeywordsSanitized = albumKeywords.map(keyword => sanitizeKeyword(keyword));
 
 // Fetch photos and build the gallery on page load
 document.addEventListener('DOMContentLoaded', async () => {
-    let photos = await fetchZenodoPhotos(); // Fetch photos from Zenodo
-    buildGalleryAndWordCloud(photos); // Build the gallery and word cloud
-    // Wait for all images to load before initializing Isotope
-    var $grid = $('.grid').imagesLoaded(function () {
-        $grid.isotope({
-            itemSelector: '.grid-item',
-            percentPosition: true,
-            masonry: {
-                columnWidth: '.grid-sizer' // Use the grid-sizer for column width
-            }
-        });
-    });
+    photos = await fetchZenodoPhotos(); // Fetch photos from Zenodo
+    totalVisualizations = photos.reduce((sum, photo) => sum + (photo.stats?.views || 0), 0); // Calculate total visualizations
 
-    // Filter items when button is clicked
-    $('.filter-button-group').on('click', 'button', function () {
-        var filterValue = $(this).attr('data-filter');
-        $grid.isotope({ filter: filterValue });
-    });
+    // Animate the visualization counter
+    const counterElement = document.getElementById('visualization-count');
+    animateCounter(counterElement, 0, totalVisualizations, 2000);
+
+    await setupPagination(); // Setup pagination buttons
+    buildWordCloud();
+    buildGallery(photos, currentPage); // Build the gallery and word cloud
 });
 
+async function setupPagination() {
+    const totalPages = Math.ceil(photos.length / photosPerPage);
+    const paginationContainer = document.createElement('div');
+    paginationContainer.id = 'gallery-pagination';
+    paginationContainer.className = 'gallery-pagination d-flex align-items-center justify-content-center text-center';
 
+    let buttonsHTML = '';
+    for (let i = 1; i <= totalPages; i++) {
+        buttonsHTML += `<button class="page-btn btn btn-sm mx-1${i === currentPage ? ' active' : ''}" data-page="${i}">${i}</button>`;
+    }
 
+    const pagesDiv = document.createElement('div');
+    pagesDiv.innerHTML = buttonsHTML;
+    pagesDiv.className = 'pages-btn-group';
+    paginationContainer.appendChild(pagesDiv);
+
+    const wrapper = document.getElementById('wrapper');
+    wrapper.parentNode.insertBefore(paginationContainer, wrapper.nextSibling);
+
+    document.querySelectorAll('.page-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            currentPage = parseInt(this.getAttribute('data-page'));
+            buildGallery(photos, currentPage);
+            document.querySelectorAll('.page-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+}
 
   // Fetch data from Zenodo API
 async function fetchZenodoPhotos() {
@@ -51,21 +73,61 @@ async function fetchZenodoPhotos() {
     //console.log(allPhotos)
     footermessage.innerHTML=" Fetched " + allPhotos.length + " photos from zenodo"
     return allPhotos; // Return all the photos
-    
 }
 
-async function buildGalleryAndWordCloud(photos) {
-    let totalVisualizations = 0;
-    const gallery = document.getElementById('gallery');
+function buildWordCloud() {
     const wordCloud = document.getElementById('word-cloud');
     const explanationBox = document.createElement('div');
     explanationBox.innerHTML = '<span class="explanation-box "><strong>Bold</strong> and <span class="album-keyword">green</span> indicates an <a href="https://zenodo.org/doi/10.5281/zenodo.7953307" target="_blank">official EURAF agroforestry typology</a>.</span>';
     wordCloud.before(explanationBox); // Insert explanation before word cloud
     let categories = {};
-    let keywordMap = {}; // Map for sanitized keyword to original
 
     // Iterate through the photos
     for (const photo of photos) {
+        // Track categories for the word cloud
+        if (photo.metadata.keywords) {
+            photo.metadata.keywords.forEach(kw => {
+                const sanitizedKeyword = sanitizeKeyword(kw);
+                if (!categories[sanitizedKeyword]) {
+                    categories[sanitizedKeyword] = {
+                        keyword: kw,
+                        count: 0
+                    };
+                }
+                categories[sanitizedKeyword].count++;
+            });
+        }
+    }
+
+    // Build word cloud
+    wordCloud.innerHTML = `<button class="word-filter" data-filter="*">All 📷 <sup>${photos.length}</sup></button>`;
+
+    // Get all sanitized keywords and sort them alphabetically
+    const sortedSanitizedKeywords = Object.keys(categories).sort((a, b) => {
+        // Sort case-insensitive
+        return a.localeCompare(b, undefined, { sensitivity: 'base' });
+    });
+
+    for (const sanitizedKeyword of sortedSanitizedKeywords) {
+        const originalKeyword = categories[sanitizedKeyword].keyword;
+        const isAlbum = albumKeywordsSanitized.includes(sanitizedKeyword);
+        const additionalClass = isAlbum ? 'album-keyword' : '';
+        wordCloud.innerHTML += `<button class="word-filter ${additionalClass}" data-filter=".${sanitizedKeyword}">${originalKeyword} <sup>${categories[sanitizedKeyword].count}</sup></button>`;
+        footermessage.innerHTML= `Building filter for ${originalKeyword}`;
+    }
+}
+
+async function buildGallery(photos, currentPage) {
+    const gallery = document.getElementById('gallery');
+    gallery.innerHTML = '<div class="grid-sizer"></div>'; // Clear previous items
+
+    // Calculate start and end indices for pagination
+    const startIdx = (currentPage - 1) * photosPerPage;
+    const endIdx = startIdx + photosPerPage;
+    const paginatedPhotos = photos.slice(startIdx, endIdx);
+
+    // Iterate through the paginated photos
+    for (const photo of paginatedPhotos) {
         try {
             const id = photo.id;
             const filename = photo.files[0].key;
@@ -73,19 +135,6 @@ async function buildGalleryAndWordCloud(photos) {
             const doi_url = `https://www.doi.org/${photo.doi}`;
             const title = photo.metadata.title || 'Untitled';
             footermessage.innerHTML= `Processing ${photo.title}`
-
-            // Increment visualization counter if available
-            if (photo.stats && photo.stats.views) {
-                totalVisualizations += photo.stats.views;
-            }
-
-            // // Crop the image and handle errors
-            // const croppedImage = await cropImage(image_url_500);
-            // if (!croppedImage) {
-            //     // Log the problematic image
-            //     console.warn(`Problem with image URL: ${image_url_500}, DOI: ${doi_url}`);
-            //     continue; // Skip to the next image if this one fails
-            // }
 
             // Collect authors and year
             const authors = photo.metadata.creators.map(creator => creator.name).join(', ');
@@ -106,20 +155,10 @@ async function buildGalleryAndWordCloud(photos) {
             let category_classes = '';
             if (photo.metadata.keywords) {
                 category_classes = photo.metadata.keywords.map(kw => {
-                    const sanitizedKeyword = sanitizeKeyword(kw);
-                    keywordMap[sanitizedKeyword] = kw; // Store original keyword
-                    return sanitizedKeyword;
+                    return sanitizeKeyword(kw);
                 }).join(' ');
             }
 
-            // Create the gallery item with lazy loading for the images
-            // const item = `
-            //     <div class="item ${category_classes} col-lg-3 col-md-4 col-6 col-sm">
-            //         <a href="${image_url_500}" class="popup-btn" data-title="${title}" data-authors="${authors}" data-year="${year}" data-doi="${doi_url}">
-            //             <img class="img-fluid lazy" src="${image_url_500}" data-src="${image_url_500}" alt="${title}" loading="lazy">
-            //             ${htmlCoords} <!-- World icon with link -->
-            //         </a>
-            //     </div>`;
             const item = `
                 <div class="grid-item ${category_classes} ">
                     <a href="${image_url_500}" class="popup-btn" data-title="${title}" data-authors="${authors}" data-year="${year}" data-doi="${doi_url}">
@@ -129,43 +168,31 @@ async function buildGalleryAndWordCloud(photos) {
                 </div>`;
             gallery.innerHTML += item;
 
-            // <div class="grid-item a">
-            //                 <img src="http://placehold.it/800x600" alt="">
-            //             </div>
-
-            // Track categories for the word cloud
-            if (photo.metadata.keywords) {
-                photo.metadata.keywords.forEach(kw => {
-                    const sanitizedKeyword = sanitizeKeyword(kw);
-                    if (!categories[sanitizedKeyword]) {
-                        categories[sanitizedKeyword] = 0;
-                    }
-                    categories[sanitizedKeyword]++;
-                });
-            }
         } catch (error) {
             console.error(`Error processing photo: ${photo.id}`, error);
         }
-
     }
 
-    // Build word cloud
+    // Destroy previous Isotope instance if exists
+    if ($('.grid').data('isotope')) {
+        $('.grid').isotope('destroy');
+    }
 
-    wordCloud.innerHTML = `<button class="word-filter" data-filter="*">All 📷 <sup>${photos.length}</sup></button>`;
-
-    // Get all sanitized keywords and sort them alphabetically
-    const sortedSanitizedKeywords = Object.keys(keywordMap).sort((a, b) => {
-        // Sort case-insensitive
-        return a.localeCompare(b, undefined, { sensitivity: 'base' });
+    var $grid = $('.grid').imagesLoaded(function () {
+        $grid.isotope({
+            itemSelector: '.grid-item',
+            percentPosition: true,
+            masonry: {
+                columnWidth: '.grid-sizer' // Use the grid-sizer for column width
+            }
+        });
     });
 
-    for (const sanitizedKeyword of sortedSanitizedKeywords) {
-        const originalKeyword = keywordMap[sanitizedKeyword];
-        const isAlbum = albumKeywordsSanitized.includes(sanitizedKeyword);
-        const additionalClass = isAlbum ? 'album-keyword' : '';
-        wordCloud.innerHTML += `<button class="word-filter ${additionalClass}" data-filter=".${sanitizedKeyword}">${originalKeyword} <sup>${categories[sanitizedKeyword]}</sup></button>`;
-        footermessage.innerHTML= `Building filter for ${originalKeyword}`;
-    }
+    // Filter items when button is clicked
+    $('.filter-button-group').on('click', 'button', function () {
+        var filterValue = $(this).attr('data-filter');
+        $grid.isotope({ filter: filterValue });
+    });
 
     // Initialize Isotope after all items are added
     var $grid = $('.grid').imagesLoaded(function () {
@@ -192,12 +219,7 @@ async function buildGalleryAndWordCloud(photos) {
             wordcloudDrawer.classList.remove('visible');
         }
     });
-    // Animate the visualization counter
-    const counterElement = document.getElementById('visualization-count');
-    animateCounter(counterElement, 0, totalVisualizations, 2000);
 
-    
-    
     initMagnificPopup();
     footermessage.innerHTML= ``
 }
