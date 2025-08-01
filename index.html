@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +6,6 @@
     <title>Agroforestry Gallery</title>
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/magnific-popup.js/1.1.0/magnific-popup.css" />
-    <link rel="stylesheet" href="css/gallery.css"> <!-- External CSS -->
     <link rel="stylesheet" href="css/gallery_aux.css"> <!-- External CSS -->
 </head>
 <body>
@@ -17,16 +15,29 @@
             <h1>Agroforestry Gallery</h1>
                      
             <h4 class="subheading">Permanent Exposition</h4>
-            <p style="font-size:0.7em">Why permanent? Because these photos have a permalink source with a DOI. Click on each photo for details (all info, including coordinates is extracted from the DOI source).<br>&#127757; -> picture has coordinates (click for location in GMap). </p>
-            <div class="visualizations-counter">
-                Total Visualizations: <span id="visualization-count">0</span><sup id="star-badge" class="star-badge">&#128175;</sup>
-                
+            <div class="info-box">
+                <span>
+                    Every photo in this gallery is here to stay! Each one tells a unique story about agroforestry across Europe.<br>
+                    Explore, get inspired, and discover landscapes, practices, and people.<br>
+                    <span style="font-size:1.2em">&#127757;</span> Some photos are geo-tagged - look for the globe icon to see their location!
+                </span>
             </div>
+            <div class="visualizations-counter mt-3 mb-2 d-inline-block px-3 py-2 rounded shadow-sm" style="background:#eafbe7; border-left:4px solid #008b00;">
+    <span style="font-weight:600; color:#253d5b;">Total Visualizations:</span>
+    <span id="visualization-count" style="font-size:1.2em;">0</span>
+    <sup id="star-badge" class="star-badge">&#128175;</sup>
+</div>
         </section>
 
         <!-- Floating button on the top-left -->
-    <button class="sticky-btn" id="open-filter">Filters</button>
-    <button class="sticky-btn-right" id="open-add-photos">Add &#128247; </button>
+    <div class="d-flex justify-content-center align-items-center my-3 gap-3">
+        <button class="sticky-btn" id="open-filter">
+            <span style="font-size:1.2em;vertical-align:middle;">&#128269;</span> Filters
+        </button>
+        <button class="sticky-btn-right" id="open-add-photos">
+            <span style="font-size:1.2em;vertical-align:middle;">&#128247;</span> Add Photo
+        </button>
+    </div>
 
 
         <!-- Off-Canvas Word Cloud Sidebar -->
