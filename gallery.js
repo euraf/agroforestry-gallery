@@ -7,7 +7,7 @@ const albumKeywords = [
     "Multi-layer gardens (on forest land)", "Homegardens, allotments, etc"
 ];
 var currentPage = 1; // Initialize current page
-const photosPerPage = 30; // Number of photos to fetch per page
+const photosPerPage = 20; // Number of photos to fetch per page
 // Sanitize and store the keywords for case-insensitive comparison
 var photos = []
 var totalVisualizations = 0

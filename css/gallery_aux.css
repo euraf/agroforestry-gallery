@@ -491,3 +491,13 @@ img{
   border-left:4px solid #008b00;
   padding-bottom: 30px; /* Extra space above footer */
 }
+
+.page-btn.active {
+    background: #008b00;
+    color: #fff;
+    pointer-events: none; /* Prevent clicking */
+    cursor: default;
+    border: 1px solid #008b00;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(0,139,0,0.13);
+}
