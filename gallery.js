@@ -7,7 +7,7 @@ const albumKeywords = [
     "Multi-layer gardens (on forest land)", "Homegardens, allotments, etc"
 ];
 var currentPage = 1; // Initialize current page
-const photosPerPage = 20; // Number of photos to fetch per page
+const photosPerPage = 10000; // Number of photos to fetch per page
 // Sanitize and store the keywords for case-insensitive comparison
 var photos = []
 var totalVisualizations = 0
@@ -29,6 +29,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function setupPagination() {
     const totalPages = Math.ceil(photos.length / photosPerPage);
+    const existingPagination = document.getElementById('gallery-pagination');
+    if (existingPagination) {
+        existingPagination.remove();
+    }
+    if (totalPages <= 1) {
+        return;
+    }
     const paginationContainer = document.createElement('div');
     paginationContainer.id = 'gallery-pagination';
     paginationContainer.className = 'gallery-pagination d-flex align-items-center justify-content-center text-center';
@@ -119,6 +126,19 @@ function buildWordCloud() {
 
 async function buildGallery(photos, currentPage) {
     const gallery = document.getElementById('gallery');
+    // Hide gallery while loading
+    gallery.classList.add('gallery-hidden');
+    const barContainer = document.getElementById('gallery-loading-bar-container');
+    const bar = document.getElementById('gallery-loading-bar');
+    const barText = document.getElementById('gallery-loading-bar-text');
+
+    // Show loading bar
+    if (barContainer) {
+        barContainer.style.display = 'block';
+        bar.style.width = '0%';
+        barText.textContent = 'Loading photos...';
+    }
+
     gallery.innerHTML = '<div class="grid-sizer"></div>'; // Clear previous items
 
     // Calculate start and end indices for pagination
@@ -126,7 +146,7 @@ async function buildGallery(photos, currentPage) {
     const endIdx = startIdx + photosPerPage;
     const paginatedPhotos = photos.slice(startIdx, endIdx);
 
-    // Iterate through the paginated photos
+    // Add items to gallery
     for (const photo of paginatedPhotos) {
         try {
             const id = photo.id;
@@ -136,11 +156,9 @@ async function buildGallery(photos, currentPage) {
             const title = photo.metadata.title || 'Untitled';
             footermessage.innerHTML= `Processing ${photo.title}`
 
-            // Collect authors and year
             const authors = photo.metadata.creators.map(creator => creator.name).join(', ');
             const year = new Date(photo.metadata.publication_date).getFullYear();
 
-            // Handle geographic coordinates if present
             let htmlCoords = "";
             if (photo.metadata.custom) {
                 const latDD = photo.metadata.custom["dwc:decimalLatitude"]?.[0];
@@ -151,7 +169,6 @@ async function buildGallery(photos, currentPage) {
                 }
             }
 
-            // Collect and sanitize keywords for the word cloud
             let category_classes = '';
             if (photo.metadata.keywords) {
                 category_classes = photo.metadata.keywords.map(kw => {
@@ -173,6 +190,34 @@ async function buildGallery(photos, currentPage) {
         }
     }
 
+    // Wait for all images to load and update the loading bar
+    const images = Array.from(gallery.querySelectorAll('img'));
+    let loaded = 0;
+    const total = images.length;
+
+    await Promise.all(images.map(img => {
+        return new Promise(resolve => {
+            if (img.complete) {
+                loaded++;
+                if (bar) bar.style.width = `${(loaded / total) * 100}%`;
+                if (barText) barText.textContent = `Loading photo ${loaded} of ${total}...`;
+                resolve();
+            } else {
+                img.onload = img.onerror = () => {
+                    loaded++;
+                    if (bar) bar.style.width = `${(loaded / total) * 100}%`;
+                    if (barText) barText.textContent = `Loading photo ${loaded} of ${total}...`;
+                    resolve();
+                };
+            }
+        });
+    }));
+
+    // Hide loading bar when done
+    if (barContainer) {
+        barContainer.style.display = 'none';
+    }
+
     // Destroy previous Isotope instance if exists
     if ($('.grid').data('isotope')) {
         $('.grid').isotope('destroy');
@@ -183,9 +228,11 @@ async function buildGallery(photos, currentPage) {
             itemSelector: '.grid-item',
             percentPosition: true,
             masonry: {
-                columnWidth: '.grid-sizer' // Use the grid-sizer for column width
+                columnWidth: '.grid-sizer'
             }
         });
+        // Show gallery after Isotope is ready
+        gallery.classList.remove('gallery-hidden');
     });
 
     // Filter items when button is clicked

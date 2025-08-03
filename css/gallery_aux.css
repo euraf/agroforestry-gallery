@@ -488,3 +488,10 @@ img {
   font-weight: bold;
   box-shadow: 0 2px 8px rgba(0, 139, 0, 0.13);
 }
+
+/* Add to your CSS file */
+.gallery-hidden {
+  visibility: hidden;
+  height: 0;
+  overflow: hidden;
+}
