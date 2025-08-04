@@ -6,6 +6,7 @@ const albumKeywords = [
     "Hedges, trees in groups, trees in lines, individual trees", "Forest grazing",
     "Multi-layer gardens (on forest land)", "Homegardens, allotments, etc"
 ];
+
 var currentPage = 1; // Initialize current page
 const photosPerPage = 10000; // Number of photos to fetch per page
 // Sanitize and store the keywords for case-insensitive comparison
@@ -126,7 +127,6 @@ function buildWordCloud() {
 
 async function buildGallery(photos, currentPage) {
     const gallery = document.getElementById('gallery');
-    // Hide gallery while loading
     gallery.classList.add('gallery-hidden');
     const barContainer = document.getElementById('gallery-loading-bar-container');
     const bar = document.getElementById('gallery-loading-bar');
@@ -141,10 +141,17 @@ async function buildGallery(photos, currentPage) {
 
     gallery.innerHTML = '<div class="grid-sizer"></div>'; // Clear previous items
 
+    // Sort photos by publication date (descending: newest first)
+    const sortedPhotos = photos.slice().sort((a, b) => {
+        const dateA = new Date(a.metadata.publication_date);
+        const dateB = new Date(b.metadata.publication_date);
+        return dateB - dateA;
+    });
+
     // Calculate start and end indices for pagination
     const startIdx = (currentPage - 1) * photosPerPage;
     const endIdx = startIdx + photosPerPage;
-    const paginatedPhotos = photos.slice(startIdx, endIdx);
+    const paginatedPhotos = sortedPhotos.slice(startIdx, endIdx);
 
     // Add items to gallery
     for (const photo of paginatedPhotos) {
@@ -250,6 +257,7 @@ async function buildGallery(photos, currentPage) {
                 columnWidth: '.grid-sizer' // Ensure the columnWidth is set to .grid-sizer
             }
         });
+        document.getElementById('open-map').style.display = 'inline-block';
     });
 
     // Event listener for dynamically generated word filters
@@ -299,6 +307,44 @@ function initMagnificPopup() {
                 
                 return `${title} <br> <small>by ${authors} (${year})<br><a href="${doi}" target="_blank">Full resolution and source to cite:  ${doi}</a></small>`;
             }
+        }
+    });
+}
+
+document.getElementById('open-map').addEventListener('click', function() {
+    document.getElementById('gallery').style.display = 'none';
+    document.getElementById('gallery-map').style.display = 'block';
+    document.getElementById('open-map').style.display = 'none';
+    document.getElementById('open-gallery').style.display = 'block';
+    showGalleryMap();
+});
+
+document.getElementById('open-gallery').addEventListener('click', function() {
+    document.getElementById('gallery').style.display = 'block';
+    document.getElementById('gallery-map').style.display = 'none';
+    document.getElementById('open-map').style.display = 'block';
+    document.getElementById('open-gallery').style.display = 'none';
+});
+
+function showGalleryMap() {
+    if (window.galleryMap) return; // Only initialize once
+    window.galleryMap = L.map('gallery-map').setView([48, 10], 4); // Center Europe
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(window.galleryMap);
+
+    // photos should be your array of photo objects with decimal_lat and decimal_lon
+    photos.forEach(photo => {
+        const id = photo.id;
+        const filename = photo.files[0].key;
+        const image_url_500 = `https://zenodo.org/api/iiif/record:${id}:${filename}/full/500,/0/default.png`;
+        const latDD = photo.metadata.custom["dwc:decimalLatitude"]?.[0];
+        const lonDD = photo.metadata.custom["dwc:decimalLongitude"]?.[0];
+        if (latDD && lonDD) {
+            L.marker([latDD, lonDD])
+                .addTo(window.galleryMap)
+                .bindPopup(`<strong>${photo.title}</strong><br><img class="mt-2" src="${image_url_500}" style="max-width:150px;margin-right: auto;margin-left: auto;">`);
         }
     });
 }
