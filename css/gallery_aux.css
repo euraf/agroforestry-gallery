@@ -253,7 +253,7 @@ body {
   top: 70px;
   background-color: #f0f4f8; /* Light neutral background */
   color: #253d5b; /* Dark blue text */
-  font-size: 16px;
+  font-size: 1rem;
   padding: 8px 18px; /* More standard button padding */
   border: 1px solid #b6e2c6; /* Soft green border */
   border-radius: 6px; /* Slightly rounded corners */
@@ -450,6 +450,14 @@ img {
   #wordcloudDrawer.visible {
     display: block; /* Show when it's toggled to visible */
   }
+  .info-box {
+    font-size: 0.7rem;
+    margin: 0 1rem;
+  }
+  .sticky-btn-text {
+    display: none;
+  }
+
 }
 
 @media only screen and (min-width: 350px) and (max-width: 767px) {
@@ -459,6 +467,27 @@ img {
     margin: 0px;
     vertical-align: center;
     padding: 1px;
+  }
+  .info-box {
+    font-size: 0.7rem;
+    margin: 0 1rem;
+  }
+  .sticky-btn {
+    padding: 0.5rem;
+  }
+  .sticky-btn-text {
+    display: none;
+  }
+  .gallery-header {
+    margin-top: 1rem;
+  }
+  .gallery-header h1 {
+    font-size: 2rem;
+    margin: 0 3rem;
+  }
+  .gallery-header h4 {
+    font-size: 1.5rem;
+    margin: 0.5rem 3rem;
   }
 }
 

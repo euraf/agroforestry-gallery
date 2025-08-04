@@ -339,12 +339,15 @@ function showGalleryMap() {
         const id = photo.id;
         const filename = photo.files[0].key;
         const image_url_500 = `https://zenodo.org/api/iiif/record:${id}:${filename}/full/500,/0/default.png`;
-        const latDD = photo.metadata.custom["dwc:decimalLatitude"]?.[0];
-        const lonDD = photo.metadata.custom["dwc:decimalLongitude"]?.[0];
-        if (latDD && lonDD) {
-            L.marker([latDD, lonDD])
-                .addTo(window.galleryMap)
-                .bindPopup(`<strong>${photo.title}</strong><br><img class="mt-2" src="${image_url_500}" style="max-width:150px;margin-right: auto;margin-left: auto;">`);
+        var custom_props = photo.metadata?.custom
+        if (custom_props) {
+            const latDD = custom_props["dwc:decimalLatitude"]?.[0];
+            const lonDD = custom_props["dwc:decimalLongitude"]?.[0];
+            if (latDD && lonDD) {
+                L.marker([latDD, lonDD])
+                    .addTo(window.galleryMap)
+                    .bindPopup(`<strong>${photo.title}</strong><br><img class="mt-2" src="${image_url_500}" style="max-width:150px;margin-right: auto;margin-left: auto;">`);
+            }
         }
     });
 }
