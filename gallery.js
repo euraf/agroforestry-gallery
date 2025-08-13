@@ -109,7 +109,7 @@ function buildWordCloud() {
   const wordCloud = document.getElementById("word-cloud");
   const explanationBox = document.createElement("div");
   explanationBox.innerHTML =
-    '<p class="explanation-box text-center small p-2"><em><a href="https://zenodo.org/doi/10.5281/zenodo.7953307" target="_blank">Official EURAF agroforestry typologies</a> are shown in <span class="album-keyword"><strong>bold green</strong></span>.</em></p>';
+    '<p class="explanation-box text-center small p-2">These filter words are fetched from keywords on the Zenodo records. <a href="https://zenodo.org/doi/10.5281/zenodo.7953307" target="_blank">Official EURAF agroforestry typologies</a> are shown in <span class="album-keyword"><strong>bold green</strong></span>.</p>';
   wordCloud.before(explanationBox); // Insert explanation before word cloud
   let categories = {};
 
