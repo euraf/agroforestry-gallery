@@ -91,7 +91,7 @@ async function fetchZenodoPhotos() {
   let allPhotos = [];
 
   for (let community of communities) {
-    let apiUrl = `https://zenodo.org/api/records/?q=communities:${community} AND resource_type.type:image`;
+    let apiUrl = `https://zenodo.org/api/records?q=communities:${community} AND resource_type.type:image`;
     let response = await fetch(apiUrl); // Fetch data from Zenodo
     let data = await response.json(); // Parse the response as JSON
 
