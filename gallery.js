@@ -21,6 +21,7 @@ const albumKeywords = [
 var currentPage = 1;
 const photosPerPage = 10000;
 var photos = [];
+var filteredPhotos = [];            // <-- new: current filtered subset
 var totalVisualizations = 0;
 const albumKeywordsSanitized = albumKeywords.map((keyword) =>
   sanitizeKeyword(keyword)
@@ -32,6 +33,10 @@ let topProgressBar = null;
 let topProgressLabel = null;
 let topHideTimeout = null;
 const renderedRecordIds = new Set(); // optional guard to avoid duplicates
+
+// Map globals (prevent ReferenceError when opening map / generating markers)
+let mapMarkersLayer = null;
+let europeBounds = null;
 
 // DOM elements (cached)
 const gallery = document.getElementById("gallery");
@@ -93,6 +98,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     showTopProgressBar(); // create UI even if totalRecords is null
 
     await fetchZenodoPhotosIncremental(["euraf-media"]);
+
+    // Ensure filteredPhotos defaults to all fetched photos after initial load
+    filteredPhotos = photos.slice();
+
     // finalize: update counters, wordcloud and pagination
     totalVisualizations = photos.reduce(
       (sum, photo) => sum + (photo.stats?.views || 0),
@@ -444,6 +453,9 @@ function buildWordCloud() {
     $(".grid").isotope({ filter: filterValue });
     $(".word-filter").removeClass("active");
     $(this).addClass("active");
+
+    applyFilterValue(filterValue);
+
     if (window.innerWidth <= 768) {
       const wordcloudDrawer = document.getElementById("wordcloudDrawer");
       if (wordcloudDrawer) wordcloudDrawer.classList.remove("visible");
@@ -566,14 +578,17 @@ function initMagnificPopup() {
   });
 }
 
-// Map toggle handlers (unchanged)
+// Map toggle handlers (unchanged DOM show/hide but ensure markers use filteredPhotos)
 if (openMapBtn) {
   openMapBtn.addEventListener("click", function () {
     document.getElementById("gallery").style.display = "none";
     document.getElementById("gallery-map").style.display = "block";
     openMapBtn.style.display = "none";
     if (openGalleryBtn) openGalleryBtn.style.display = "block";
-    showGalleryMap();
+
+    // initialize map and generate markers for the current filtered set
+    initGalleryMap();
+    generateMapMarkers(filteredPhotos.length ? filteredPhotos : photos);
   });
 }
 if (openGalleryBtn) {
@@ -582,6 +597,13 @@ if (openGalleryBtn) {
     document.getElementById("gallery-map").style.display = "none";
     if (openMapBtn) openMapBtn.style.display = "block";
     openGalleryBtn.style.display = "none";
+    // re-render gallery from current filteredPhotos so the view is up-to-date
+    try {
+      renderFilteredGallery();
+      updateTopProgress();
+    } catch (e) {
+      console.warn('Error updating gallery on toggle:', e);
+    }
   });
 }
 
@@ -596,75 +618,87 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
-function showGalleryMap() {
+// Initialize the Leaflet map and base layer (no markers)
+function initGalleryMap() {
   if (window.galleryMap) return;
 
-  // Initialize map centered on Europe with a reasonable zoom,
-  // then fit to a Europe bounding box so the initial view includes all Europe.
+  // create map centered on Europe
   window.galleryMap = L.map("gallery-map").setView([54, 10], 4);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "© OpenStreetMap contributors",
   }).addTo(window.galleryMap);
 
-  // Europe bounding box (southWest, northEast) — covers most of continental Europe
-  const europeBounds = L.latLngBounds(
-    L.latLng(34.0, -25.0), // SW: southernmost/lateral west
-    L.latLng(72.0, 45.0)   // NE: northernmost/eastern
-  );
+  // Europe bounding box (southWest, northEast)
+  europeBounds = L.latLngBounds(L.latLng(34.0, -25.0), L.latLng(72.0, 45.0));
 
-  // Constrain map panning/zoom to the Europe envelope with some buffer
+  // Constrain panning/zoom and set reasonable limits
   window.galleryMap.setMaxBounds(europeBounds.pad(0.4));
   window.galleryMap.options.minZoom = 3;
   window.galleryMap.options.maxZoom = 18;
 
+  // prepare a layer group for markers (so we can clear/update easily)
+  if (!mapMarkersLayer) {
+    mapMarkersLayer = L.layerGroup().addTo(window.galleryMap);
+  }
+}
+
+// Generate / refresh markers from a given photo list (defaults to photos array)
+function generateMapMarkers(list = photos) {
+  if (!window.galleryMap) initGalleryMap();
+  if (!mapMarkersLayer) mapMarkersLayer = L.layerGroup().addTo(window.galleryMap);
+
+  mapMarkersLayer.clearLayers();
   const markers = [];
 
-  photos.forEach((photo) => {
+  for (const photo of list) {
+    const custom_props = photo.metadata?.custom;
+    const latDD = custom_props?.["dwc:decimalLatitude"]?.[0];
+    const lonDD = custom_props?.["dwc:decimalLongitude"]?.[0];
+    if (!latDD || !lonDD) continue;
+
     const filename = (photo.files && photo.files[0] && photo.files[0].key) || "";
     const image_url_200 = filename
       ? `https://zenodo.org/api/iiif/record:${photo.id}:${filename}/full/200,/0/default.png`
       : "";
-    var custom_props = photo.metadata?.custom;
-    if (custom_props) {
-      const latDD = custom_props["dwc:decimalLatitude"]?.[0];
-      const lonDD = custom_props["dwc:decimalLongitude"]?.[0];
-      if (latDD && lonDD) {
-        // build same info as Magnific Popup
-        const title = photo.metadata?.title || "";
-        const authors = (photo.metadata?.creators || []).map((c) => c.name).join(", ");
-        const year = photo.metadata?.publication_date
-          ? new Date(photo.metadata.publication_date).getFullYear()
-          : "";
-        const doi_url = photo.doi ? `https://www.doi.org/${photo.doi}` : "";
+    const title = photo.metadata?.title || "";
+    const authors = (photo.metadata?.creators || []).map((c) => c.name).join(", ");
+    const year = photo.metadata?.publication_date ? new Date(photo.metadata.publication_date).getFullYear() : "";
+    const doi_url = photo.doi ? `https://www.doi.org/${photo.doi}` : "";
 
-        const popupHtml = `
-          <div class="map-popup">
-            <div class="map-popup-title">${escapeHtml(title)}</div>
-            ${authors || year ? `<div class="map-popup-meta"><small>by ${escapeHtml(authors)} ${year ? `(${escapeHtml(String(year))})` : ""}</small></div>` : ""}
-            ${image_url_200 ? `<div class="map-popup-img"><img src="${image_url_200}" alt="${escapeHtml(title)}"></div>` : ""}
-            ${doi_url ? `<div class="map-popup-doi"><a href="${doi_url}" target="_blank" rel="noopener">Full resolution and source to cite</a></div>` : ""}
-          </div>
-        `;
+    const popupHtml = `
+      <div class="map-popup">
+        <div class="map-popup-title">${escapeHtml(title)}</div>
+        ${authors || year ? `<div class="map-popup-meta"><small>by ${escapeHtml(authors)} ${year ? `(${escapeHtml(String(year))})` : ""}</small></div>` : ""}
+        ${image_url_200 ? `<div class="map-popup-img"><img src="${image_url_200}" alt="${escapeHtml(title)}"></div>` : ""}
+        ${doi_url ? `<div class="map-popup-doi"><a href="${doi_url}" target="_blank" rel="noopener">Full resolution and source to cite</a></div>` : ""}
+      </div>
+    `;
 
-        const marker = L.marker([latDD, lonDD])
-          .addTo(window.galleryMap)
-          .bindPopup(popupHtml, { maxWidth: 360, className: "custom-map-popup" });
+    const marker = L.marker([parseFloat(latDD), parseFloat(lonDD)])
+      .bindPopup(popupHtml, { maxWidth: 360, className: "custom-map-popup" })
+      .addTo(mapMarkersLayer);
 
-        markers.push(marker);
-      }
-    }
-  });
+    markers.push(marker);
+  }
 
-  // If there are markers, fit bounds to markers; otherwise fit to Europe bounds
+  // Fit view to markers or to Europe bounds
   if (markers.length) {
     const group = L.featureGroup(markers);
-    // fit to markers, but keep view within europe bounds
-    window.galleryMap.fitBounds(group.getBounds().pad(0.15));
-  } else {
-    // no markers: show full Europe
+    try {
+      window.galleryMap.fitBounds(group.getBounds().pad(0.15));
+    } catch (e) {
+      // ignore fit errors
+    }
+  } else if (europeBounds) {
     window.galleryMap.fitBounds(europeBounds.pad(0.05));
   }
+}
+
+// Backwards-compatible showGalleryMap: initialize map and add markers from current photos
+function showGalleryMap() {
+  initGalleryMap();
+  generateMapMarkers(photos);
 }
 
 // Counter animation
@@ -742,4 +776,45 @@ document.getElementById('close-add-photos')?.addEventListener('click', () => {
 document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('word-cloud')) buildWordCloud();
 });
+
+// Helper: render the gallery from filteredPhotos (clears previous content and reuses appendPhotosToGallery)
+function renderFilteredGallery() {
+  if (!gallery) return;
+  // destroy isotope so appendPhotosToGallery starts clean
+  try {
+    if ($(".grid").data("isotope")) {
+      $(".grid").isotope("destroy");
+    }
+  } catch (e) {
+    console.debug("renderFilteredGallery: isotope destroy failed", e);
+  }
+  isotopeInitialized = false;
+  // clear gallery
+  gallery.innerHTML = '<div class="grid-sizer"></div>';
+  // append filtered photos (appendPhotosToGallery will init isotope)
+  appendPhotosToGallery(filteredPhotos);
+  // update map markers to reflect current filtered view
+  if (window.galleryMap) {
+    generateMapMarkers(filteredPhotos);
+  }
+}
+
+// Helper: apply a filter value from the button's data-filter (supports ".kw-xxx", ".xxx" or "*")
+function applyFilterValue(filterValue) {
+  if (!filterValue || filterValue === "*" || filterValue === "all") {
+    filteredPhotos = photos.slice();
+  } else {
+    const raw = String(filterValue).replace(/^\./, ""); // remove leading dot if present
+    // support optional "kw-" prefix
+    debugger
+    const sanitizedKey = raw.startsWith("kw-") ? raw.slice(3) : raw;
+    filteredPhotos = photos.filter((p) => {
+      const kws = (p.metadata?.keywords || []).map((k) => sanitizeKeyword(k));
+      return kws.includes(sanitizedKey);
+    });
+  }
+  // render view and update UI
+  renderFilteredGallery();
+  updateTopProgress();
+}
 
