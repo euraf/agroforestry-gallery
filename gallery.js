@@ -148,7 +148,9 @@ function buildWordCloud() {
   }
 }
 
+/*
 async function buildGallery(photos, currentPage) {
+  debugger
   const gallery = document.getElementById("gallery");
   gallery.classList.add("gallery-hidden");
   const barContainer = document.getElementById("gallery-loading-bar-container");
@@ -179,6 +181,7 @@ async function buildGallery(photos, currentPage) {
   // Add items to gallery
   for (const photo of paginatedPhotos) {
     try {
+      debugger
       const id = photo.id;
       const filename = photo.files[0].key;
       const image_url_500 = `https://zenodo.org/api/iiif/record:${id}:${filename}/full/500,/0/default.png`;
@@ -211,12 +214,12 @@ async function buildGallery(photos, currentPage) {
       }
 
       const item = `
-                <div class="grid-item ${category_classes} ">
-                    <a href="${image_url_500}" class="popup-btn" data-title="${title}" data-authors="${authors}" data-year="${year}" data-doi="${doi_url}">
-                        <img class="img-fluid lazy" src="${image_url_500}" data-src="${image_url_500}" alt="${title}" loading="lazy">
-                        ${htmlCoords} <!-- World icon with link -->
-                    </a>
-                </div>`;
+          <div class="grid-item ${category_classes} ">
+              <a href="${image_url_500}" class="popup-btn" data-title="${title}" data-authors="${authors}" data-year="${year}" data-doi="${doi_url}">
+                  <img class="img-fluid lazy" src="${image_url_500}" data-src="${image_url_500}" alt="${title}" loading="lazy" crossorigin="anonymous">
+                  ${htmlCoords} <!-- World icon with link -->
+              </a>
+          </div>`;
       gallery.innerHTML += item;
     } catch (error) {
       console.error(`Error processing photo: ${photo.id}`, error);
@@ -228,7 +231,118 @@ async function buildGallery(photos, currentPage) {
   let loaded = 0;
   const total = images.length;
 
+// Start loading all images without waiting
+images.forEach((img, index) => {
+  // Set crossorigin before checking complete status
+  img.crossOrigin = "anonymous";
+  
+  const updateProgress = () => {
+    loaded++;
+    // Update progress bar immediately
+    if (bar) bar.style.width = `${(loaded / total) * 100}%`;
+    if (barText) barText.textContent = `Loading photo ${loaded} of ${total}...`;
+    
+    // Hide loading bar when all images are done
+    if (loaded >= total && barContainer) {
+      setTimeout(() => {
+        barContainer.style.display = "none";
+      }, 500); // Small delay to show 100% completion
+    }
+  };
+
+  // Check if image is already loaded
+  if (img.complete && img.naturalWidth > 0) {
+    updateProgress();
+    return;
+  }
+
+  // Set up load/error handlers
+  let hasResolved = false;
+  
+  const handleComplete = () => {
+    if (!hasResolved) {
+      hasResolved = true;
+      updateProgress();
+    }
+  };
+
+  img.addEventListener('load', handleComplete, { once: true });
+  img.addEventListener('error', handleComplete, { once: true });
+  
+  // Fallback timeout
+  setTimeout(() => {
+    if (!hasResolved) {
+      console.warn(`Image load timeout for: ${img.src}`);
+      hasResolved = true;
+      updateProgress();
+    }
+  }, 5000);
+
+  // Trigger loading if needed
+  if (img.src && !img.complete) {
+    const originalSrc = img.src;
+    img.src = '';
+    img.src = originalSrc;
+  }
+});
+
+// Don't wait for images - continue with Isotope setup
+// The progress bar will update as images load in the background
+/*
   await Promise.all(
+    images.map((img, index) => {
+      return new Promise((resolve) => {
+        // Set crossorigin before checking complete status
+        img.crossOrigin = "anonymous";
+        
+        const updateProgress = () => {
+          loaded++;
+          if (bar) bar.style.width = `${(loaded / total) * 100}%`;
+          if (barText)
+            barText.textContent = `Loading photo ${loaded} of ${total}...`;
+          resolve();
+        };
+
+        // Check if image is already loaded
+        if (img.complete && img.naturalWidth > 0) {
+          updateProgress();
+          return;
+        }
+
+        // Set up load/error handlers
+        let hasResolved = false;
+        
+        const handleComplete = () => {
+          if (!hasResolved) {
+            hasResolved = true;
+            updateProgress();
+          }
+        };
+
+        img.addEventListener('load', handleComplete, { once: true });
+        img.addEventListener('error', handleComplete, { once: true });
+        
+        // Fallback timeout in case neither event fires
+        setTimeout(() => {
+          if (!hasResolved) {
+            console.warn(`Image load timeout for: ${img.src}`);
+            hasResolved = true;
+            updateProgress();
+          }
+        }, 10000); // 10 second timeout
+
+        // Trigger loading if src is already set
+        if (img.src && !img.complete) {
+          // Force reload by setting src again
+          const originalSrc = img.src;
+          img.src = '';
+          img.src = originalSrc;
+        }
+      });
+    })
+  );*/
+
+  /*await Promise.all(
     images.map((img) => {
       return new Promise((resolve) => {
         if (img.complete) {
@@ -307,6 +421,189 @@ async function buildGallery(photos, currentPage) {
 
   initMagnificPopup();
   footermessage.innerHTML = ``;
+}
+*/
+
+async function buildGallery(photos, currentPage) {
+  const gallery = document.getElementById("gallery");
+  gallery.classList.add("gallery-hidden");
+  const barContainer = document.getElementById("gallery-loading-bar-container");
+  const bar = document.getElementById("gallery-loading-bar");
+  const barText = document.getElementById("gallery-loading-bar-text");
+
+  // Show loading bar
+  if (barContainer) {
+    barContainer.style.display = "block";
+    bar.style.width = "0%";
+    barText.textContent = "Loading photos...";
+  }
+
+  gallery.innerHTML = '<div class="grid-sizer"></div>'; // Clear previous items
+
+  // Sort photos by publication date (descending: newest first)
+  const sortedPhotos = photos.slice().sort((a, b) => {
+    const dateA = new Date(a.metadata.publication_date);
+    const dateB = new Date(b.metadata.publication_date);
+    return dateB - dateA;
+  });
+
+  // Calculate start and end indices for pagination
+  const startIdx = (currentPage - 1) * photosPerPage;
+  const endIdx = startIdx + photosPerPage;
+  const paginatedPhotos = sortedPhotos.slice(startIdx, endIdx);
+
+  // Add items to gallery
+  for (const photo of paginatedPhotos) {
+    try {
+      const id = photo.id;
+      const filename = photo.files[0].key;
+      const image_url_500 = `https://zenodo.org/api/iiif/record:${id}:${filename}/full/500,/0/default.png`;
+      const doi_url = `https://www.doi.org/${photo.doi}`;
+      const title = photo.metadata.title || "Untitled";
+      footermessage.innerHTML = `Processing ${photo.title}`;
+
+      const authors = photo.metadata.creators
+        .map((creator) => creator.name)
+        .join(", ");
+      const year = new Date(photo.metadata.publication_date).getFullYear();
+
+      let htmlCoords = "";
+      if (photo.metadata.custom) {
+        const latDD = photo.metadata.custom["dwc:decimalLatitude"]?.[0];
+        const lonDD = photo.metadata.custom["dwc:decimalLongitude"]?.[0];
+        if (latDD && lonDD) {
+          const photoLink2Gmap = BuildLink2Gmap(lonDD, latDD);
+          htmlCoords = `<a href="${photoLink2Gmap}" target="_blank" class="icon-overlay">&#127757;</a>`;
+        }
+      }
+
+      let category_classes = "";
+      if (photo.metadata.keywords) {
+        category_classes = photo.metadata.keywords
+          .map((kw) => {
+            return sanitizeKeyword(kw);
+          })
+          .join(" ");
+      }
+
+      const item = `
+          <div class="grid-item ${category_classes}" style="opacity: 0; transition: opacity 0.5s;">
+              <a href="${image_url_500}" class="popup-btn" data-title="${title}" data-authors="${authors}" data-year="${year}" data-doi="${doi_url}">
+                  <img class="img-fluid lazy" src="${image_url_500}" data-src="${image_url_500}" alt="${title}" loading="lazy">
+                  ${htmlCoords} <!-- World icon with link -->
+              </a>
+          </div>`;
+      gallery.innerHTML += item;
+    } catch (error) {
+      console.error(`Error processing photo: ${photo.id}`, error);
+    }
+  }
+
+  // Show gallery immediately but items are hidden with opacity: 0
+  gallery.classList.remove("gallery-hidden");
+
+  // Initialize Isotope first
+  if ($(".grid").data("isotope")) {
+    $(".grid").isotope("destroy");
+  }
+
+  var $grid = $(".grid").isotope({
+    itemSelector: ".grid-item",
+    percentPosition: true,
+    masonry: {
+      columnWidth: ".grid-sizer",
+    },
+  });
+
+  // Now load images and show them progressively
+  const images = Array.from(gallery.querySelectorAll("img"));
+  let loaded = 0;
+  const total = images.length;
+
+  // Start loading all images without waiting
+  images.forEach((img, index) => {
+    const gridItem = img.closest('.grid-item');
+    
+    const updateProgress = () => {
+      loaded++;
+      // Update progress bar immediately
+      if (bar) bar.style.width = `${(loaded / total) * 100}%`;
+      if (barText) barText.textContent = `Loading photo ${loaded} of ${total}...`;
+      
+      // Show this specific image by changing opacity
+      gridItem.style.opacity = '1';
+      
+      // Relayout Isotope for this item
+      $grid.isotope('layout');
+      
+      // Hide loading bar when all images are done
+      if (loaded >= total && barContainer) {
+        setTimeout(() => {
+          barContainer.style.display = "none";
+          document.getElementById("open-map").style.display = "inline-block";
+          footermessage.innerHTML = ``;
+        }, 500); // Small delay to show 100% completion
+      }
+    };
+
+    // Check if image is already loaded
+    if (img.complete && img.naturalWidth > 0) {
+      updateProgress();
+      return;
+    }
+
+    // Set up load/error handlers
+    let hasResolved = false;
+    
+    const handleComplete = () => {
+      if (!hasResolved) {
+        hasResolved = true;
+        updateProgress();
+      }
+    };
+
+    img.addEventListener('load', handleComplete, { once: true });
+    img.addEventListener('error', handleComplete, { once: true });
+    
+    // Fallback timeout
+    setTimeout(() => {
+      if (!hasResolved) {
+        console.warn(`Image load timeout for: ${img.src}`);
+        hasResolved = true;
+        updateProgress();
+      }
+    }, 5000);
+
+    // Trigger loading if needed
+    if (img.src && !img.complete) {
+      const originalSrc = img.src;
+      img.src = '';
+      img.src = originalSrc;
+    }
+  });
+
+  // Set up filter events
+  $(".filter-button-group").on("click", "button", function () {
+    var filterValue = $(this).attr("data-filter");
+    $grid.isotope({ filter: filterValue });
+  });
+
+  // Event listener for dynamically generated word filters
+  $(document).on("click", ".word-filter", function () {
+    var filterValue = $(this).attr("data-filter");
+    $grid.isotope({ filter: filterValue });
+
+    // Mark the clicked filter as active
+    $(".word-filter").removeClass("active");
+    $(this).addClass("active");
+    // Close the word cloud on mobile if necessary
+    if (window.innerWidth <= 768) {
+      const wordcloudDrawer = document.getElementById("wordcloudDrawer");
+      wordcloudDrawer.classList.remove("visible");
+    }
+  });
+
+  initMagnificPopup();
 }
 
 function sanitizeKeyword(keyword) {
