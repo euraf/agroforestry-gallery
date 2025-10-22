@@ -83,11 +83,17 @@ body {
   left: 0;
 }
 .offcanvas-add-photos {
-  right: -300px;
-  transition: right 0.3s ease;
+  right: -360px;               /* hide offscreen by default */
+  width: 360px;                /* slightly wider for form/content */
+  transition: right 0.32s ease;
+  max-height: 100vh;
+  overflow-y: auto;
+  z-index: 1002;               /* above other panels */
+  padding: 10px;
+  box-sizing: border-box;
 }
 .offcanvas-add-photos.visible {
-  right: 0;
+  right: 0;                    /* slide into view */
 }
 
 /* Off-canvas header */
@@ -194,28 +200,40 @@ body {
   content: "- "
 }
 
-/* Footer */
+/* Footer (refined, more discrete) */
 .footer {
   text-align: center;
-  padding: 1px;
-  background-color: #f8f9fa;
+  background-color: rgba(248, 249, 250, 0.96);
   color: #6c757d;
-  font-size: 10px;
+  font-size: 12px;
   position: fixed;
   bottom: 0;
   width: 100%;
-  box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.1);
-  z-index: 2000;
-  margin-bottom: -15px;
+  box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.04);
+  z-index: 1000;
+  margin-bottom: 0;
 }
+
 .footer a {
   color: #007bff;
   text-decoration: none;
-  font-size: 10px;
 }
 .footer a:hover {
   color: #0056b3;
   text-decoration: underline;
+}
+
+/* small helper for visually-hidden content (keeps markup accessible) */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
 }
 
 /* Visualizations Counter */
