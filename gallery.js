@@ -29,7 +29,28 @@ const albumKeywordsSanitized = albumKeywords.map((keyword) =>
 
 // Fetch photos and build the gallery on page load
 document.addEventListener("DOMContentLoaded", async () => {
+  // Show loading bar before fetching photos
+  const barContainer = document.getElementById("gallery-loading-bar-container");
+  const bar = document.getElementById("gallery-loading-bar");
+  const barText = document.getElementById("gallery-loading-bar-text");
+  let dotsInterval;
+  if (barContainer) {
+    barContainer.style.display = "block";
+    bar.style.width = "0%";
+    let dots = 0;
+    barText.textContent = "Fetching photos from Zenodo";
+    dotsInterval = setInterval(() => {
+      dots = (dots + 1) % 4;
+      barText.textContent = "Fetching photos from Zenodo" + ".".repeat(dots);
+    }, 500);
+  }
+
   photos = await fetchZenodoPhotos(); // Fetch photos from Zenodo
+
+  // Stop the dots animation
+  if (dotsInterval) clearInterval(dotsInterval);
+  if (barText) barText.textContent = "Fetched photos from Zenodo";
+
   totalVisualizations = photos.reduce(
     (sum, photo) => sum + (photo.stats?.views || 0),
     0
@@ -41,7 +62,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   await setupPagination(); // Setup pagination buttons
   buildWordCloud();
-  buildGallery(photos, currentPage); // Build the gallery and word cloud
+  buildGallery(photos, currentPage);
 });
 
 async function setupPagination() {
@@ -148,282 +169,6 @@ function buildWordCloud() {
   }
 }
 
-/*
-async function buildGallery(photos, currentPage) {
-  debugger
-  const gallery = document.getElementById("gallery");
-  gallery.classList.add("gallery-hidden");
-  const barContainer = document.getElementById("gallery-loading-bar-container");
-  const bar = document.getElementById("gallery-loading-bar");
-  const barText = document.getElementById("gallery-loading-bar-text");
-
-  // Show loading bar
-  if (barContainer) {
-    barContainer.style.display = "block";
-    bar.style.width = "0%";
-    barText.textContent = "Loading photos...";
-  }
-
-  gallery.innerHTML = '<div class="grid-sizer"></div>'; // Clear previous items
-
-  // Sort photos by publication date (descending: newest first)
-  const sortedPhotos = photos.slice().sort((a, b) => {
-    const dateA = new Date(a.metadata.publication_date);
-    const dateB = new Date(b.metadata.publication_date);
-    return dateB - dateA;
-  });
-
-  // Calculate start and end indices for pagination
-  const startIdx = (currentPage - 1) * photosPerPage;
-  const endIdx = startIdx + photosPerPage;
-  const paginatedPhotos = sortedPhotos.slice(startIdx, endIdx);
-
-  // Add items to gallery
-  for (const photo of paginatedPhotos) {
-    try {
-      debugger
-      const id = photo.id;
-      const filename = photo.files[0].key;
-      const image_url_500 = `https://zenodo.org/api/iiif/record:${id}:${filename}/full/500,/0/default.png`;
-      const doi_url = `https://www.doi.org/${photo.doi}`;
-      const title = photo.metadata.title || "Untitled";
-      footermessage.innerHTML = `Processing ${photo.title}`;
-
-      const authors = photo.metadata.creators
-        .map((creator) => creator.name)
-        .join(", ");
-      const year = new Date(photo.metadata.publication_date).getFullYear();
-
-      let htmlCoords = "";
-      if (photo.metadata.custom) {
-        const latDD = photo.metadata.custom["dwc:decimalLatitude"]?.[0];
-        const lonDD = photo.metadata.custom["dwc:decimalLongitude"]?.[0];
-        if (latDD && lonDD) {
-          const photoLink2Gmap = BuildLink2Gmap(lonDD, latDD);
-          htmlCoords = `<a href="${photoLink2Gmap}" target="_blank" class="icon-overlay">&#127757;</a>`;
-        }
-      }
-
-      let category_classes = "";
-      if (photo.metadata.keywords) {
-        category_classes = photo.metadata.keywords
-          .map((kw) => {
-            return sanitizeKeyword(kw);
-          })
-          .join(" ");
-      }
-
-      const item = `
-          <div class="grid-item ${category_classes} ">
-              <a href="${image_url_500}" class="popup-btn" data-title="${title}" data-authors="${authors}" data-year="${year}" data-doi="${doi_url}">
-                  <img class="img-fluid lazy" src="${image_url_500}" data-src="${image_url_500}" alt="${title}" loading="lazy" crossorigin="anonymous">
-                  ${htmlCoords} <!-- World icon with link -->
-              </a>
-          </div>`;
-      gallery.innerHTML += item;
-    } catch (error) {
-      console.error(`Error processing photo: ${photo.id}`, error);
-    }
-  }
-
-  // Wait for all images to load and update the loading bar
-  const images = Array.from(gallery.querySelectorAll("img"));
-  let loaded = 0;
-  const total = images.length;
-
-// Start loading all images without waiting
-images.forEach((img, index) => {
-  // Set crossorigin before checking complete status
-  img.crossOrigin = "anonymous";
-  
-  const updateProgress = () => {
-    loaded++;
-    // Update progress bar immediately
-    if (bar) bar.style.width = `${(loaded / total) * 100}%`;
-    if (barText) barText.textContent = `Loading photo ${loaded} of ${total}...`;
-    
-    // Hide loading bar when all images are done
-    if (loaded >= total && barContainer) {
-      setTimeout(() => {
-        barContainer.style.display = "none";
-      }, 500); // Small delay to show 100% completion
-    }
-  };
-
-  // Check if image is already loaded
-  if (img.complete && img.naturalWidth > 0) {
-    updateProgress();
-    return;
-  }
-
-  // Set up load/error handlers
-  let hasResolved = false;
-  
-  const handleComplete = () => {
-    if (!hasResolved) {
-      hasResolved = true;
-      updateProgress();
-    }
-  };
-
-  img.addEventListener('load', handleComplete, { once: true });
-  img.addEventListener('error', handleComplete, { once: true });
-  
-  // Fallback timeout
-  setTimeout(() => {
-    if (!hasResolved) {
-      console.warn(`Image load timeout for: ${img.src}`);
-      hasResolved = true;
-      updateProgress();
-    }
-  }, 5000);
-
-  // Trigger loading if needed
-  if (img.src && !img.complete) {
-    const originalSrc = img.src;
-    img.src = '';
-    img.src = originalSrc;
-  }
-});
-
-// Don't wait for images - continue with Isotope setup
-// The progress bar will update as images load in the background
-/*
-  await Promise.all(
-    images.map((img, index) => {
-      return new Promise((resolve) => {
-        // Set crossorigin before checking complete status
-        img.crossOrigin = "anonymous";
-        
-        const updateProgress = () => {
-          loaded++;
-          if (bar) bar.style.width = `${(loaded / total) * 100}%`;
-          if (barText)
-            barText.textContent = `Loading photo ${loaded} of ${total}...`;
-          resolve();
-        };
-
-        // Check if image is already loaded
-        if (img.complete && img.naturalWidth > 0) {
-          updateProgress();
-          return;
-        }
-
-        // Set up load/error handlers
-        let hasResolved = false;
-        
-        const handleComplete = () => {
-          if (!hasResolved) {
-            hasResolved = true;
-            updateProgress();
-          }
-        };
-
-        img.addEventListener('load', handleComplete, { once: true });
-        img.addEventListener('error', handleComplete, { once: true });
-        
-        // Fallback timeout in case neither event fires
-        setTimeout(() => {
-          if (!hasResolved) {
-            console.warn(`Image load timeout for: ${img.src}`);
-            hasResolved = true;
-            updateProgress();
-          }
-        }, 10000); // 10 second timeout
-
-        // Trigger loading if src is already set
-        if (img.src && !img.complete) {
-          // Force reload by setting src again
-          const originalSrc = img.src;
-          img.src = '';
-          img.src = originalSrc;
-        }
-      });
-    })
-  );*/
-
-  /*await Promise.all(
-    images.map((img) => {
-      return new Promise((resolve) => {
-        if (img.complete) {
-          loaded++;
-          if (bar) bar.style.width = `${(loaded / total) * 100}%`;
-          if (barText)
-            barText.textContent = `Loading photo ${loaded} of ${total}...`;
-          resolve();
-        } else {
-          img.onload = img.onerror = () => {
-            loaded++;
-            if (bar) bar.style.width = `${(loaded / total) * 100}%`;
-            if (barText)
-              barText.textContent = `Loading photo ${loaded} of ${total}...`;
-            resolve();
-          };
-        }
-      });
-    })
-  );
-
-  // Hide loading bar when done
-  if (barContainer) {
-    barContainer.style.display = "none";
-  }
-
-  // Destroy previous Isotope instance if exists
-  if ($(".grid").data("isotope")) {
-    $(".grid").isotope("destroy");
-  }
-
-  var $grid = $(".grid").imagesLoaded(function () {
-    $grid.isotope({
-      itemSelector: ".grid-item",
-      percentPosition: true,
-      masonry: {
-        columnWidth: ".grid-sizer",
-      },
-    });
-    // Show gallery after Isotope is ready
-    gallery.classList.remove("gallery-hidden");
-  });
-
-  // Filter items when button is clicked
-  $(".filter-button-group").on("click", "button", function () {
-    var filterValue = $(this).attr("data-filter");
-    $grid.isotope({ filter: filterValue });
-  });
-
-  // Initialize Isotope after all items are added
-  var $grid = $(".grid").imagesLoaded(function () {
-    $grid.isotope({
-      itemSelector: ".grid-item",
-      percentPosition: true,
-      masonry: {
-        columnWidth: ".grid-sizer", // Ensure the columnWidth is set to .grid-sizer
-      },
-    });
-    document.getElementById("open-map").style.display = "inline-block";
-  });
-
-  // Event listener for dynamically generated word filters
-  $(document).on("click", ".word-filter", function () {
-    var filterValue = $(this).attr("data-filter");
-    $grid.isotope({ filter: filterValue });
-
-    // Mark the clicked filter as active
-    $(".word-filter").removeClass("active");
-    $(this).addClass("active");
-    // Close the word cloud on mobile if necessary
-    if (window.innerWidth <= 768) {
-      const wordcloudDrawer = document.getElementById("wordcloudDrawer");
-      wordcloudDrawer.classList.remove("visible");
-    }
-  });
-
-  initMagnificPopup();
-  footermessage.innerHTML = ``;
-}
-*/
-
 async function buildGallery(photos, currentPage) {
   const gallery = document.getElementById("gallery");
   gallery.classList.add("gallery-hidden");
@@ -457,7 +202,6 @@ async function buildGallery(photos, currentPage) {
     try {
       const id = photo.id;
       const filename = photo.files[0].key;
-      const image_url_500 = `https://zenodo.org/api/iiif/record:${id}:${filename}/full/500,/0/default.png`;
       const doi_url = `https://www.doi.org/${photo.doi}`;
       const title = photo.metadata.title || "Untitled";
       footermessage.innerHTML = `Processing ${photo.title}`;
@@ -485,11 +229,14 @@ async function buildGallery(photos, currentPage) {
           })
           .join(" ");
       }
+
+      const thumbnail_url = `https://zenodo.org/api/iiif/record:${id}:${filename}/full/300,/0/default.png`; // Thumbnail
+      const large_image_url = `https://zenodo.org/api/iiif/record:${id}:${filename}/full/600,/0/default.png`; // Large image for popup
 
       const item = `
           <div class="grid-item ${category_classes}" style="opacity: 0; transition: opacity 0.5s;">
-              <a href="${image_url_500}" class="popup-btn" data-title="${title}" data-authors="${authors}" data-year="${year}" data-doi="${doi_url}">
-                  <img class="img-fluid lazy" src="${image_url_500}" data-src="${image_url_500}" alt="${title}" loading="lazy">
+              <a href="${large_image_url}" class="popup-btn" data-title="${title}" data-authors="${authors}" data-year="${year}" data-doi="${doi_url}">
+                  <img class="img-fluid lazy" src="${thumbnail_url}" data-src="${thumbnail_url}" alt="${title}" loading="lazy">
                   ${htmlCoords} <!-- World icon with link -->
               </a>
           </div>`;
@@ -513,6 +260,11 @@ async function buildGallery(photos, currentPage) {
     masonry: {
       columnWidth: ".grid-sizer",
     },
+  });
+
+  // Re-layout grid after each image loads
+  $(".grid img").on("load", function () {
+    $grid.isotope("layout");
   });
 
   // Now load images and show them progressively
