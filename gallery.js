@@ -585,31 +585,86 @@ if (openGalleryBtn) {
   });
 }
 
+// small helper to safely escape text inserted into popup HTML
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function showGalleryMap() {
   if (window.galleryMap) return;
-  window.galleryMap = L.map("gallery-map").setView([48, 10], 4);
+
+  // Initialize map centered on Europe with a reasonable zoom,
+  // then fit to a Europe bounding box so the initial view includes all Europe.
+  window.galleryMap = L.map("gallery-map").setView([54, 10], 4);
+
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "© OpenStreetMap contributors",
   }).addTo(window.galleryMap);
 
+  // Europe bounding box (southWest, northEast) — covers most of continental Europe
+  const europeBounds = L.latLngBounds(
+    L.latLng(34.0, -25.0), // SW: southernmost/lateral west
+    L.latLng(72.0, 45.0)   // NE: northernmost/eastern
+  );
+
+  // Constrain map panning/zoom to the Europe envelope with some buffer
+  window.galleryMap.setMaxBounds(europeBounds.pad(0.4));
+  window.galleryMap.options.minZoom = 3;
+  window.galleryMap.options.maxZoom = 18;
+
+  const markers = [];
+
   photos.forEach((photo) => {
     const filename = (photo.files && photo.files[0] && photo.files[0].key) || "";
-    const image_url_500 = filename
-      ? `https://zenodo.org/api/iiif/record:${photo.id}:${filename}/full/500,/0/default.png`
+    const image_url_200 = filename
+      ? `https://zenodo.org/api/iiif/record:${photo.id}:${filename}/full/200,/0/default.png`
       : "";
     var custom_props = photo.metadata?.custom;
     if (custom_props) {
       const latDD = custom_props["dwc:decimalLatitude"]?.[0];
       const lonDD = custom_props["dwc:decimalLongitude"]?.[0];
       if (latDD && lonDD) {
-        L.marker([latDD, lonDD])
+        // build same info as Magnific Popup
+        const title = photo.metadata?.title || "";
+        const authors = (photo.metadata?.creators || []).map((c) => c.name).join(", ");
+        const year = photo.metadata?.publication_date
+          ? new Date(photo.metadata.publication_date).getFullYear()
+          : "";
+        const doi_url = photo.doi ? `https://www.doi.org/${photo.doi}` : "";
+
+        const popupHtml = `
+          <div class="map-popup">
+            <div class="map-popup-title">${escapeHtml(title)}</div>
+            ${authors || year ? `<div class="map-popup-meta"><small>by ${escapeHtml(authors)} ${year ? `(${escapeHtml(String(year))})` : ""}</small></div>` : ""}
+            ${image_url_200 ? `<div class="map-popup-img"><img src="${image_url_200}" alt="${escapeHtml(title)}"></div>` : ""}
+            ${doi_url ? `<div class="map-popup-doi"><a href="${doi_url}" target="_blank" rel="noopener">Full resolution and source to cite</a></div>` : ""}
+          </div>
+        `;
+
+        const marker = L.marker([latDD, lonDD])
           .addTo(window.galleryMap)
-          .bindPopup(
-            `<strong>${photo.title || ""}</strong><br><img class="mt-2" src="${image_url_500}" style="max-width:150px;margin-right: auto;margin-left: auto;">`
-          );
+          .bindPopup(popupHtml, { maxWidth: 360, className: "custom-map-popup" });
+
+        markers.push(marker);
       }
     }
   });
+
+  // If there are markers, fit bounds to markers; otherwise fit to Europe bounds
+  if (markers.length) {
+    const group = L.featureGroup(markers);
+    // fit to markers, but keep view within europe bounds
+    window.galleryMap.fitBounds(group.getBounds().pad(0.15));
+  } else {
+    // no markers: show full Europe
+    window.galleryMap.fitBounds(europeBounds.pad(0.05));
+  }
 }
 
 // Counter animation

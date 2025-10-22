@@ -554,3 +554,40 @@ img {
 .mfp-content img, .mfp-content iframe {
     display: inline-block;
 }
+
+/* Map popup styling to match Magnific Popup info, discrete and neat */
+.custom-map-popup .map-popup {
+  font-family: "Segoe UI", sans-serif;
+  color: #253d5b;
+  max-width: 320px;
+}
+.custom-map-popup .map-popup-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: var(--dark-blue);
+  font-size: 15px;
+}
+.custom-map-popup .map-popup-meta {
+  color: #6c757d;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.custom-map-popup .map-popup-img img {
+  width: auto;
+  height: auto;
+  border-radius: 6px;
+  display: block;
+  margin: 6px auto;
+}
+.custom-map-popup .map-popup-doi {
+  margin-top: 6px;
+  font-size: 13px;
+}
+.custom-map-popup .map-popup-doi a {
+  color: #008b00;
+  text-decoration: none;
+  font-weight: 600;
+}
+.custom-map-popup .map-popup-doi a:hover {
+  text-decoration: underline;
+}
