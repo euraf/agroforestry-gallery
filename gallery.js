@@ -22,6 +22,8 @@ var currentPage = 1;
 const photosPerPage = 10000;
 var photos = [];
 var filteredPhotos = [];            // <-- new: current filtered subset
+// currently active single filter (sanitized key) or null
+var currentActiveFilter = null;
 var totalVisualizations = 0;
 const albumKeywordsSanitized = albumKeywords.map((keyword) =>
   sanitizeKeyword(keyword)
@@ -450,11 +452,12 @@ function buildWordCloud() {
   $(document).off("click", ".word-filter");
   $(document).on("click", ".word-filter", function () {
     const filterValue = $(this).attr("data-filter");
-    $(".grid").isotope({ filter: filterValue });
     $(".word-filter").removeClass("active");
     $(this).addClass("active");
 
+    // apply client-side filter and show active chip
     applyFilterValue(filterValue);
+    setActiveFilterChip(filterValue);
 
     if (window.innerWidth <= 768) {
       const wordcloudDrawer = document.getElementById("wordcloudDrawer");
@@ -625,9 +628,39 @@ function initGalleryMap() {
   // create map centered on Europe
   window.galleryMap = L.map("gallery-map").setView([54, 10], 4);
 
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "© OpenStreetMap contributors",
-  }).addTo(window.galleryMap);
+  // Base layers: OSM Mapnik (default) and an aerial imagery (Esri World Imagery)
+  const osmMapnik = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+    subdomains: ["a", "b", "c"],
+    detectRetina: true,
+  });
+
+  const esriAerial = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {
+      attribution:
+        'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+      maxZoom: 19,
+      detectRetina: true,
+    }
+  );
+
+  // add default layer (OSM Mapnik)
+  osmMapnik.addTo(window.galleryMap);
+
+  // add layer switcher control so users can toggle to aerial imagery
+  try {
+    const baseLayers = {
+      'OpenStreetMap': osmMapnik,
+      'Esri World Imagery': esriAerial,
+    };
+    if (!window.galleryBaseLayerControl) {
+      window.galleryBaseLayerControl = L.control.layers(baseLayers, null, { collapsed: false }).addTo(window.galleryMap);
+    }
+  } catch (e) {
+    console.warn('Could not add base layer control', e);
+  }
 
   // Europe bounding box (southWest, northEast)
   europeBounds = L.latLngBounds(L.latLng(34.0, -25.0), L.latLng(72.0, 45.0));
@@ -637,9 +670,42 @@ function initGalleryMap() {
   window.galleryMap.options.minZoom = 3;
   window.galleryMap.options.maxZoom = 18;
 
-  // prepare a layer group for markers (so we can clear/update easily)
+  // prepare a marker cluster group for markers (clusters overlapping markers)
   if (!mapMarkersLayer) {
-    mapMarkersLayer = L.layerGroup().addTo(window.galleryMap);
+    // use marker clustering for dense / overlapping points
+    try {
+      mapMarkersLayer = L.markerClusterGroup({
+        // reduce cluster radius so clustering is less aggressive
+        maxClusterRadius: 20,
+        // show individual markers at closer zoom levels
+        disableClusteringAtZoom: 13,
+        // when at max zoom, spiderfy overlapping markers
+        spiderfyOnMaxZoom: true,
+        // don't show the grey coverage circle on hover (cleaner)
+        showCoverageOnHover: false,
+        // zoom to bounds when clicking a cluster
+        zoomToBoundsOnClick: true,
+        // performance option for many markers
+        chunkedLoading: true,
+        // custom cluster icon to keep clusters compact
+        iconCreateFunction: function (cluster) {
+          const count = cluster.getChildCount();
+          let size = 'small';
+          if (count > 50) size = 'large';
+          else if (count > 10) size = 'medium';
+          return L.divIcon({
+            html: '<div><span>' + count + '</span></div>',
+            className: 'marker-cluster marker-cluster-' + size,
+            iconSize: L.point(30, 30),
+          });
+        },
+      });
+    } catch (e) {
+      // fallback to plain layer group if markercluster is not available
+      console.warn('MarkerCluster plugin not available, falling back to layerGroup', e);
+      mapMarkersLayer = L.layerGroup();
+    }
+    mapMarkersLayer.addTo(window.galleryMap);
   }
 }
 
@@ -675,9 +741,19 @@ function generateMapMarkers(list = photos) {
       </div>
     `;
 
-    const marker = L.marker([parseFloat(latDD), parseFloat(lonDD)])
-      .bindPopup(popupHtml, { maxWidth: 360, className: "custom-map-popup" })
-      .addTo(mapMarkersLayer);
+    // create a themed divIcon so individual markers match gallery colors
+    const customIcon = L.divIcon({
+      className: 'custom-marker-wrapper',
+      html: '<div class="custom-marker-pin"></div>',
+      iconSize: [20, 28],
+      iconAnchor: [10, 28],
+      popupAnchor: [0, -26]
+    });
+
+    const marker = L.marker([parseFloat(latDD), parseFloat(lonDD)], { icon: customIcon })
+      .bindPopup(popupHtml, { maxWidth: 360, className: "custom-map-popup" });
+    // add to cluster layer (or plain layerGroup)
+    mapMarkersLayer.addLayer(marker);
 
     markers.push(marker);
   }
@@ -816,5 +892,50 @@ function applyFilterValue(filterValue) {
   // render view and update UI
   renderFilteredGallery();
   updateTopProgress();
+}
+
+// Show a single active filter chip to the left of the visualizations counter
+function setActiveFilterChip(filterValue) {
+  const container = document.getElementById('active-filters');
+  if (!container) return;
+
+  // normalize filter key (remove leading dot)
+  let key = String(filterValue || '').replace(/^\./, '');
+  if (!key || key === '*' || key === 'all') {
+    // clear any chip
+    container.innerHTML = '';
+    currentActiveFilter = null;
+    return;
+  }
+
+  // if prefixed kw- remove it for display
+  const displayKey = key.startsWith('kw-') ? key.slice(3) : key;
+  currentActiveFilter = displayKey;
+
+  // get original label if available
+  const label = (categories[displayKey] && categories[displayKey].keyword) || displayKey;
+
+  container.innerHTML = `
+    <div class="filter-chip" data-key="${escapeHtml(displayKey)}">
+      <span class="chip-label">${escapeHtml(label)}</span>
+      <span class="chip-clear" title="Remove filter">&times;</span>
+    </div>
+  `;
+
+  // wire clear action
+  const clearBtn = container.querySelector('.chip-clear');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => { clearActiveFilter(); });
+  }
+}
+
+function clearActiveFilter() {
+  const container = document.getElementById('active-filters');
+  if (container) container.innerHTML = '';
+  currentActiveFilter = null;
+  // reset filters
+  applyFilterValue('*');
+  // visually unselect buttons
+  document.querySelectorAll('.word-filter').forEach(b => b.classList.remove('active'));
 }
 

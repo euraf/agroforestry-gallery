@@ -9,6 +9,9 @@
       rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/magnific-popup.js/1.1.0/magnific-popup.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet.markercluster CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
     <link rel="stylesheet" href="css/gallery.css" />
     <style>
       /* quick override for popup image height (adjust if you want larger/smaller) */
@@ -31,15 +34,22 @@
           geo-tagged - look for the globe icon to see their location!
         </span>
       </div>
-      <div
-        class="visualizations-counter mt-3 mb-2 d-inline-block px-3 py-2 rounded shadow-sm"
-        style="background: #eafbe7; border-left: 4px solid #008b00"
-      >
-        <p class="m-0 pl-2" style="font-weight: 600; color: #253d5b">
-          Total visualizations:
-          <span id="visualization-count" style="font-size: 1.2em">0</span>
-          <sup id="star-badge" class="star-badge">&#128175;</sup>
-        </p>
+      <div class="row no-gutters">
+        <div class="col-4"></div>
+        <div class="col-4">
+        <div
+          class="visualizations-counter mt-3 d-inline-block mb-3 px-3 py-2 rounded shadow-sm"
+          style="background: #eafbe7; border-left: 4px solid #008b00"
+        >
+          <div style="display:flex;align-items:center;gap:12px">
+            <p class="m-0 pl-2" style="font-weight: 600; color: #253d5b">
+              Total visualizations:
+              <span id="visualization-count" style="font-size: 1.2em">0</span>
+              <sup id="star-badge" class="star-badge">&#128175;</sup>
+            </p>
+          </div>
+        </div></div>
+        <div id="active-filters" class="col-4"></div>
       </div>
     </section>
 
@@ -231,6 +241,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.isotope/3.0.6/isotope.pkgd.js"></script>
     <script src="https://unpkg.com/imagesloaded@4/imagesloaded.pkgd.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Leaflet.markercluster JS -->
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script src="gallery.js"></script>
   </body>
 </html>
