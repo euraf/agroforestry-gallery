@@ -1,7 +1,7 @@
 # Agroforestry Gallery
 The **Agroforestry Gallery** is a key feature of **DigitAF's Agroforestry Virtual Space**, providing a dynamic platform for sharing and exploring agroforestry-related images.
 
-Through the gallery, users can upload their own photos directly to the [EURAF Agroforestry Media Zenodo community](https://zenodo.org/communities/euraf-media). Each uploaded image receives a DOI, is stored under an open license (default: CC BY 4.0), and is automatically integrated into the gallery via the [International Image Interoperability Framework (IIIF)](https://zenodo.org/communities/euraf-media) and the [Zenodo](https://zenodo.org/communities/euraf-media) API.
+Through the gallery, users can upload their own photos directly to the [EURAF Agroforestry Media Zenodo community](https://zenodo.org/communities/euraf-media). Each uploaded image receives a DOI, is stored under an open license (default: CC BY 4.0), and is automatically integrated into the gallery via the [International Image Interoperability Framework (IIIF)](https://iiif.io/) and the [Zenodo](https://zenodo.org) API.
 
 Because it is served directly from this EURAF GitHub repository, **the gallery can easily be embedded or adapted by other projects**, making it a ready-to-use solution for anyone who wants to showcase agroforestry imagery on their own website.
 
