@@ -21,7 +21,7 @@ const albumKeywords = [
 var currentPage = 1;
 const photosPerPage = 10000;
 var photos = [];
-var filteredPhotos = [];            // <-- new: current filtered subset
+var filteredPhotos = []; // <-- new: current filtered subset
 // currently active single filter (sanitized key) or null
 var currentActiveFilter = null;
 var totalVisualizations = 0;
@@ -109,7 +109,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       (sum, photo) => sum + (photo.stats?.views || 0),
       0
     );
-    animateCounter(document.getElementById("visualization-count"), 0, totalVisualizations, 800);
+    animateCounter(
+      document.getElementById("visualization-count"),
+      0,
+      totalVisualizations,
+      800
+    );
     buildWordCloud(); // full rebuild at the end to ensure counts are consistent
     await setupPagination();
   } catch (err) {
@@ -147,9 +152,13 @@ async function fetchZenodoPhotosIncremental(communities) {
       const hits = data.hits?.hits || [];
 
       if (hits.length) {
-        // append new photos to global array and render immediately
-        photos = photos.concat(hits);
-        appendPhotosToGallery(hits);
+        // filter out any hits we've already rendered (prevent duplicates)
+        const newHits = hits.filter((h) => !renderedRecordIds.has(h.id));
+        if (newHits.length) {
+          newHits.forEach((h) => renderedRecordIds.add(h.id));
+          photos = photos.concat(newHits);
+          appendPhotosToGallery(newHits);
+        }
         allPhotosCount += hits.length;
         console.debug(`Fetched ${allPhotosCount} photos so far`);
       }
@@ -167,7 +176,9 @@ async function fetchZenodoPhotosIncremental(communities) {
 async function fetchTotalCount(communities) {
   let sum = 0;
   for (const community of communities) {
-    const url = `https://zenodo.org/api/records?communities=${encodeURIComponent(community)}&type=image&size=1`;
+    const url = `https://zenodo.org/api/records?communities=${encodeURIComponent(
+      community
+    )}&type=image&size=1`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Count fetch failed ${res.status}`);
     const data = await res.json();
@@ -188,7 +199,10 @@ function showTopProgressBar() {
   }
 
   // prefer placing the progress bar centered below the header; fallback to wrapper/body
-  const insertAfter = document.querySelector(".gallery-header") || document.getElementById("wrapper") || document.body;
+  const insertAfter =
+    document.querySelector(".gallery-header") ||
+    document.getElementById("wrapper") ||
+    document.body;
 
   const container = document.createElement("div");
   container.id = "top-progress-container";
@@ -276,7 +290,8 @@ function appendPhotosToGallery(newPhotos) {
   for (const photo of newPhotos) {
     try {
       const id = photo.id;
-      const filename = (photo.files && photo.files[0] && photo.files[0].key) || "";
+      const filename =
+        (photo.files && photo.files[0] && photo.files[0].key) || "";
       const doi_url = photo.doi ? `https://www.doi.org/${photo.doi}` : "#";
       const title = photo.metadata?.title || "Untitled";
 
@@ -284,7 +299,8 @@ function appendPhotosToGallery(newPhotos) {
       if (photo.metadata?.keywords) {
         photo.metadata.keywords.forEach((kw) => {
           const sanitized = sanitizeKeyword(kw);
-          if (!categories[sanitized]) categories[sanitized] = { keyword: kw, count: 0 };
+          if (!categories[sanitized])
+            categories[sanitized] = { keyword: kw, count: 0 };
           categories[sanitized].count++;
         });
       }
@@ -302,7 +318,9 @@ function appendPhotosToGallery(newPhotos) {
 
       let category_classes = "";
       if (photo.metadata?.keywords) {
-        category_classes = photo.metadata.keywords.map((kw) => sanitizeKeyword(kw)).join(" ");
+        category_classes = photo.metadata.keywords
+          .map((kw) => sanitizeKeyword(kw))
+          .join(" ");
       }
 
       const thumbnail_url = filename
@@ -318,7 +336,14 @@ function appendPhotosToGallery(newPhotos) {
       div.style.opacity = "0";
       div.style.transition = "opacity 0.5s";
       div.innerHTML = `
-        <a href="${large_image_url}" class="popup-btn" data-title="${title}" data-authors="${(photo.metadata?.creators||[]).map(c=>c.name).join(", ")}" data-year="${photo.metadata?.publication_date ? new Date(photo.metadata.publication_date).getFullYear() : ''}" data-doi="${doi_url}">
+        <a href="${large_image_url}" class="popup-btn" data-title="${title}" data-authors="${(
+          photo.metadata?.creators || []
+        )
+          .map((c) => c.name)
+          .join(", ")}" data-year="${photo.metadata?.publication_date
+          ? new Date(photo.metadata.publication_date).getFullYear()
+          : ""
+        }" data-doi="${doi_url}">
           <img class="img-fluid lazy" src="${thumbnail_url}" data-src="${thumbnail_url}" alt="${title}" loading="lazy">
           ${htmlCoords}
         </a>
@@ -333,13 +358,24 @@ function appendPhotosToGallery(newPhotos) {
 
   // Initialize Isotope once, then relayout
   if (!isotopeInitialized) {
-    initIsotope();
+    try {
+      initIsotope();
+    } catch (e) {
+      console.warn("initIsotope failed", e);
+    }
     isotopeInitialized = true;
   } else {
     // If isotope exists, appended elements need layout
     setTimeout(() => {
-      $(".grid").isotope("appended", $(gallery).find(".grid-item").slice(-newPhotos.length));
-      $(".grid").isotope("layout");
+      try {
+        $(".grid").isotope(
+          "appended",
+          $(gallery).find(".grid-item").slice(-newPhotos.length)
+        );
+        $(".grid").isotope("layout");
+      } catch (e) {
+        console.warn("Isotope append/layout failed", e);
+      }
     }, 50);
   }
 
@@ -480,7 +516,8 @@ async function setupPagination() {
 
   let buttonsHTML = "";
   for (let i = 1; i <= totalPages; i++) {
-    buttonsHTML += `<button class="page-btn btn btn-sm mx-1${i === currentPage ? " active" : ""}" data-page="${i}">${i}</button>`;
+    buttonsHTML += `<button class="page-btn btn btn-sm mx-1${i === currentPage ? " active" : ""
+      }" data-page="${i}">${i}</button>`;
   }
 
   const pagesDiv = document.createElement("div");
@@ -489,14 +526,17 @@ async function setupPagination() {
   paginationContainer.appendChild(pagesDiv);
 
   const wrapper = document.getElementById("wrapper");
-  if (wrapper) wrapper.parentNode.insertBefore(paginationContainer, wrapper.nextSibling);
+  if (wrapper)
+    wrapper.parentNode.insertBefore(paginationContainer, wrapper.nextSibling);
 
   document.querySelectorAll(".page-btn").forEach((btn) => {
     btn.addEventListener("click", async function () {
       currentPage = parseInt(this.getAttribute("data-page"));
       // simply rebuild gallery view (client-side pagination over the already fetched photos)
       buildGalleryPaginated(currentPage);
-      document.querySelectorAll(".page-btn").forEach((b) => b.classList.remove("active"));
+      document
+        .querySelectorAll(".page-btn")
+        .forEach((b) => b.classList.remove("active"));
       this.classList.add("active");
     });
   });
@@ -506,7 +546,13 @@ async function setupPagination() {
 function buildGalleryPaginated(page) {
   if (!gallery) return;
   gallery.innerHTML = '<div class="grid-sizer"></div>';
-  const sortedPhotos = photos.slice().sort((a, b) => new Date(b.metadata.publication_date) - new Date(a.metadata.publication_date));
+  const sortedPhotos = photos
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(b.metadata.publication_date) -
+        new Date(a.metadata.publication_date)
+    );
   const startIdx = (page - 1) * photosPerPage;
   const endIdx = startIdx + photosPerPage;
   const paginated = sortedPhotos.slice(startIdx, endIdx);
@@ -605,7 +651,7 @@ if (openGalleryBtn) {
       renderFilteredGallery();
       updateTopProgress();
     } catch (e) {
-      console.warn('Error updating gallery on toggle:', e);
+      console.warn("Error updating gallery on toggle:", e);
     }
   });
 }
@@ -629,18 +675,22 @@ function initGalleryMap() {
   window.galleryMap = L.map("gallery-map").setView([54, 10], 4);
 
   // Base layers: OSM Mapnik (default) and an aerial imagery (Esri World Imagery)
-  const osmMapnik = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19,
-    subdomains: ["a", "b", "c"],
-    detectRetina: true,
-  });
-
-  const esriAerial = L.tileLayer(
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  const osmMapnik = L.tileLayer(
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     {
       attribution:
-        'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+      subdomains: ["a", "b", "c"],
+      detectRetina: true,
+    }
+  );
+
+  const esriAerial = L.tileLayer(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    {
+      attribution:
+        "Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
       maxZoom: 19,
       detectRetina: true,
     }
@@ -652,14 +702,16 @@ function initGalleryMap() {
   // add layer switcher control so users can toggle to aerial imagery
   try {
     const baseLayers = {
-      'OpenStreetMap': osmMapnik,
-      'Esri World Imagery': esriAerial,
+      OpenStreetMap: osmMapnik,
+      "Esri World Imagery": esriAerial,
     };
     if (!window.galleryBaseLayerControl) {
-      window.galleryBaseLayerControl = L.control.layers(baseLayers, null, { collapsed: false }).addTo(window.galleryMap);
+      window.galleryBaseLayerControl = L.control
+        .layers(baseLayers, null, { collapsed: false })
+        .addTo(window.galleryMap);
     }
   } catch (e) {
-    console.warn('Could not add base layer control', e);
+    console.warn("Could not add base layer control", e);
   }
 
   // Europe bounding box (southWest, northEast)
@@ -690,19 +742,22 @@ function initGalleryMap() {
         // custom cluster icon to keep clusters compact
         iconCreateFunction: function (cluster) {
           const count = cluster.getChildCount();
-          let size = 'small';
-          if (count > 50) size = 'large';
-          else if (count > 10) size = 'medium';
+          let size = "small";
+          if (count > 50) size = "large";
+          else if (count > 10) size = "medium";
           return L.divIcon({
-            html: '<div><span>' + count + '</span></div>',
-            className: 'marker-cluster marker-cluster-' + size,
+            html: "<div><span>" + count + "</span></div>",
+            className: "marker-cluster marker-cluster-" + size,
             iconSize: L.point(30, 30),
           });
         },
       });
     } catch (e) {
       // fallback to plain layer group if markercluster is not available
-      console.warn('MarkerCluster plugin not available, falling back to layerGroup', e);
+      console.warn(
+        "MarkerCluster plugin not available, falling back to layerGroup",
+        e
+      );
       mapMarkersLayer = L.layerGroup();
     }
     mapMarkersLayer.addTo(window.galleryMap);
@@ -712,7 +767,8 @@ function initGalleryMap() {
 // Generate / refresh markers from a given photo list (defaults to photos array)
 function generateMapMarkers(list = photos) {
   if (!window.galleryMap) initGalleryMap();
-  if (!mapMarkersLayer) mapMarkersLayer = L.layerGroup().addTo(window.galleryMap);
+  if (!mapMarkersLayer)
+    mapMarkersLayer = L.layerGroup().addTo(window.galleryMap);
 
   mapMarkersLayer.clearLayers();
   const markers = [];
@@ -723,35 +779,53 @@ function generateMapMarkers(list = photos) {
     const lonDD = custom_props?.["dwc:decimalLongitude"]?.[0];
     if (!latDD || !lonDD) continue;
 
-    const filename = (photo.files && photo.files[0] && photo.files[0].key) || "";
+    const filename =
+      (photo.files && photo.files[0] && photo.files[0].key) || "";
     const image_url_200 = filename
       ? `https://zenodo.org/api/iiif/record:${photo.id}:${filename}/full/200,/0/default.png`
       : "";
     const title = photo.metadata?.title || "";
-    const authors = (photo.metadata?.creators || []).map((c) => c.name).join(", ");
-    const year = photo.metadata?.publication_date ? new Date(photo.metadata.publication_date).getFullYear() : "";
+    const authors = (photo.metadata?.creators || [])
+      .map((c) => c.name)
+      .join(", ");
+    const year = photo.metadata?.publication_date
+      ? new Date(photo.metadata.publication_date).getFullYear()
+      : "";
     const doi_url = photo.doi ? `https://www.doi.org/${photo.doi}` : "";
 
     const popupHtml = `
       <div class="map-popup">
         <div class="map-popup-title">${escapeHtml(title)}</div>
-        ${authors || year ? `<div class="map-popup-meta"><small>by ${escapeHtml(authors)} ${year ? `(${escapeHtml(String(year))})` : ""}</small></div>` : ""}
-        ${image_url_200 ? `<div class="map-popup-img"><img src="${image_url_200}" alt="${escapeHtml(title)}"></div>` : ""}
-        ${doi_url ? `<div class="map-popup-doi"><a href="${doi_url}" target="_blank" rel="noopener">Full resolution and source to cite</a></div>` : ""}
+        ${authors || year
+        ? `<div class="map-popup-meta"><small>by ${escapeHtml(authors)} ${year ? `(${escapeHtml(String(year))})` : ""
+        }</small></div>`
+        : ""
+      }
+        ${image_url_200
+        ? `<div class="map-popup-img"><img src="${image_url_200}" alt="${escapeHtml(
+          title
+        )}"></div>`
+        : ""
+      }
+        ${doi_url
+        ? `<div class="map-popup-doi"><a href="${doi_url}" target="_blank" rel="noopener">Full resolution and source to cite</a></div>`
+        : ""
+      }
       </div>
     `;
 
     // create a themed divIcon so individual markers match gallery colors
     const customIcon = L.divIcon({
-      className: 'custom-marker-wrapper',
+      className: "custom-marker-wrapper",
       html: '<div class="custom-marker-pin"></div>',
       iconSize: [20, 28],
       iconAnchor: [10, 28],
-      popupAnchor: [0, -26]
+      popupAnchor: [0, -26],
     });
 
-    const marker = L.marker([parseFloat(latDD), parseFloat(lonDD)], { icon: customIcon })
-      .bindPopup(popupHtml, { maxWidth: 360, className: "custom-map-popup" });
+    const marker = L.marker([parseFloat(latDD), parseFloat(lonDD)], {
+      icon: customIcon,
+    }).bindPopup(popupHtml, { maxWidth: 360, className: "custom-map-popup" });
     // add to cluster layer (or plain layerGroup)
     mapMarkersLayer.addLayer(marker);
 
@@ -782,7 +856,7 @@ function animateCounter(targetElement, start, end, duration) {
   if (!targetElement) return;
   let range = Math.max(0, end - start);
   let current = start;
-  let increment = range / Math.max(1, (duration / 16));
+  let increment = range / Math.max(1, duration / 16);
   function updateCounter() {
     current += increment;
     if (current >= end) {
@@ -818,39 +892,26 @@ async function loadhtmlContent(htmlpage, ObjID2inject) {
 }
 
 // wire open/close for the filter drawer
-document.getElementById('open-filter')?.addEventListener('click', () => {
-  const d = document.getElementById('wordcloudDrawer');
-  if (d) d.classList.toggle('visible');
+document.getElementById("open-filter")?.addEventListener("click", () => {
+  const d = document.getElementById("wordcloudDrawer");
+  if (d) d.classList.toggle("visible");
 });
-document.getElementById('close-filter')?.addEventListener('click', () => {
-  const d = document.getElementById('wordcloudDrawer');
-  if (d) d.classList.remove('visible');
+document.getElementById("close-filter")?.addEventListener("click", () => {
+  const d = document.getElementById("wordcloudDrawer");
+  if (d) d.classList.remove("visible");
 });
 
 // --- ADD: wire open/close for the Add Photo drawer and lazy-load its content ---
-document.getElementById('open-add-photos')?.addEventListener('click', async () => {
-  const d = document.getElementById('addPhotosDrawer');
-  const contentId = 'add-photos-content';
-  if (!d) return;
-  d.classList.toggle('visible');
-
-  // load content only when drawer becomes visible and content is empty
-  if (d.classList.contains('visible')) {
-    const container = document.getElementById(contentId);
-    if (container && !container.innerHTML.trim()) {
-      // load local file content/addphotos.html
-      await loadhtmlContent('content/addphotos.html', contentId);
-    }
-  }
-});
-document.getElementById('close-add-photos')?.addEventListener('click', () => {
-  const d = document.getElementById('addPhotosDrawer');
-  if (d) d.classList.remove('visible');
-});
-
-// ensure filters are generated once DOM is ready (buildWordCloud runs after photos load too)
-document.addEventListener('DOMContentLoaded', () => {
-  if (document.getElementById('word-cloud')) buildWordCloud();
+document
+  .getElementById("open-add-photos")
+  ?.addEventListener("click", async () => {
+    const d = document.getElementById("addPhotosDrawer");
+    if (!d) return;
+    d.classList.toggle("visible");
+  });
+document.getElementById("close-add-photos")?.addEventListener("click", () => {
+  const d = document.getElementById("addPhotosDrawer");
+  if (d) d.classList.remove("visible");
 });
 
 // Helper: render the gallery from filteredPhotos (clears previous content and reuses appendPhotosToGallery)
@@ -882,7 +943,6 @@ function applyFilterValue(filterValue) {
   } else {
     const raw = String(filterValue).replace(/^\./, ""); // remove leading dot if present
     // support optional "kw-" prefix
-    debugger
     const sanitizedKey = raw.startsWith("kw-") ? raw.slice(3) : raw;
     filteredPhotos = photos.filter((p) => {
       const kws = (p.metadata?.keywords || []).map((k) => sanitizeKeyword(k));
@@ -896,24 +956,25 @@ function applyFilterValue(filterValue) {
 
 // Show a single active filter chip to the left of the visualizations counter
 function setActiveFilterChip(filterValue) {
-  const container = document.getElementById('active-filters');
+  const container = document.getElementById("active-filters");
   if (!container) return;
 
   // normalize filter key (remove leading dot)
-  let key = String(filterValue || '').replace(/^\./, '');
-  if (!key || key === '*' || key === 'all') {
+  let key = String(filterValue || "").replace(/^\./, "");
+  if (!key || key === "*" || key === "all") {
     // clear any chip
-    container.innerHTML = '';
+    container.innerHTML = "";
     currentActiveFilter = null;
     return;
   }
 
   // if prefixed kw- remove it for display
-  const displayKey = key.startsWith('kw-') ? key.slice(3) : key;
+  const displayKey = key.startsWith("kw-") ? key.slice(3) : key;
   currentActiveFilter = displayKey;
 
   // get original label if available
-  const label = (categories[displayKey] && categories[displayKey].keyword) || displayKey;
+  const label =
+    (categories[displayKey] && categories[displayKey].keyword) || displayKey;
 
   container.innerHTML = `
     <div class="filter-chip" data-key="${escapeHtml(displayKey)}">
@@ -923,19 +984,22 @@ function setActiveFilterChip(filterValue) {
   `;
 
   // wire clear action
-  const clearBtn = container.querySelector('.chip-clear');
+  const clearBtn = container.querySelector(".chip-clear");
   if (clearBtn) {
-    clearBtn.addEventListener('click', () => { clearActiveFilter(); });
+    clearBtn.addEventListener("click", () => {
+      clearActiveFilter();
+    });
   }
 }
 
 function clearActiveFilter() {
-  const container = document.getElementById('active-filters');
-  if (container) container.innerHTML = '';
+  const container = document.getElementById("active-filters");
+  if (container) container.innerHTML = "";
   currentActiveFilter = null;
   // reset filters
-  applyFilterValue('*');
+  applyFilterValue("*");
   // visually unselect buttons
-  document.querySelectorAll('.word-filter').forEach(b => b.classList.remove('active'));
+  document
+    .querySelectorAll(".word-filter")
+    .forEach((b) => b.classList.remove("active"));
 }
-
