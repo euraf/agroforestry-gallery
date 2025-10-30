@@ -1046,6 +1046,7 @@ async function loadZenodoInstructions() {
     // converter.setFlavor('github');
     converter.setOption('disableForced4SpacesIndentedSublists', true);
     converter.setOption('headerLevelStart', 4)
+    converter.setOption('simpleLineBreaks', true)
     /*converter.setOption('smartIndentationFix', true);*/
     const htmlContent = converter.makeHtml(markdownText);
     
@@ -1065,58 +1066,58 @@ async function loadZenodoInstructions() {
   }
 }
 
-// Simple Markdown to HTML converter for basic formatting
-function simpleMarkdownToHtml(markdown) {
-  let html = markdown;
-  
-  // Headers - skip H1 titles, only convert H2 and H3
-  html = html.replace(/^### (.*$)/gim, '<p><strong>$1</strong></p>');
-  html = html.replace(/^## (.*$)/gim, '<p><strong>$1</strong></p>');
-  // Remove H1 headers entirely (don't convert to HTML)
-  html = html.replace(/^# .*$/gim, '');
-  
-  // Bold text
-  html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
-  
-  // Italic text
-  html = html.replace(/\*(.*?)\*/gim, '<em>$1</em>');
-  
-  // Links
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-  
-  // Code inline
-  html = html.replace(/`([^`]+)`/gim, '<code>$1</code>');
-  
-  // Lists - convert markdown lists to HTML
-  // Handle numbered lists
-  html = html.replace(/^\s*\d+\.\s+(.*)$/gim, '<li class="numbered">$1</li>');
-  // Handle bullet lists  
-  html = html.replace(/^\s*[-*]\s+(.*)$/gim, '<li class="bullet">$1</li>');
-  
-  // Wrap consecutive <li> elements in <ol> or <ul>
-  html = html.replace(/(<li class="numbered">.*?<\/li>(?:\s*<li class="numbered">.*?<\/li>)*)/gim, function(match, listItems) {
-    return `<ol>${listItems.replace(/ class="numbered"/g, '')}</ol>`;
+document
+  .getElementById("open-about")
+  .addEventListener("click", async function () {
+    await loadAboutContent();
+    $("#aboutModal").modal("show");
   });
+
+// Function to load README content into About modal
+async function loadAboutContent() {
+  const modalBody = document.getElementById("aboutModalBody");
+  if (!modalBody) return;
   
-  html = html.replace(/(<li class="bullet">.*?<\/li>(?:\s*<li class="bullet">.*?<\/li>)*)/gim, function(match, listItems) {
-    return `<ul>${listItems.replace(/ class="bullet"/g, '')}</ul>`;
-  });
+  // Check if content is already loaded
+  if (modalBody.dataset.loaded === "true") return;
   
-  // Paragraphs - split by double line breaks
-  const paragraphs = html.split(/\n\s*\n/);
-  html = paragraphs.map(p => {
-    p = p.trim();
-    if (!p) return '';
-    // Don't wrap if already wrapped in HTML tags
-    if (p.match(/^<(h[1-6]|ul|ol|li|div|p)/)) return p;
-    return `<p>${p}</p>`;
-  }).join('\n');
-  
-  // Emoji highlighting for new content
-  html = html.replace(/🆕/g, '<span style="background-color: yellow;">🆕</span>');
-  
-  // Convert line breaks to <br> within paragraphs
-  html = html.replace(/\n/g, '<br>');
-  
-  return html;
+  try {
+    const response = await fetch('./README.md');
+    if (!response.ok) throw new Error('Failed to load README');
+    
+    const markdownText = await response.text();
+    
+    // Extract the first section (everything before the first ## heading after the title)
+    const lines = markdownText.split('\n');
+    const firstSectionLines = [];
+    let foundFirstHeading = false;
+    
+    for (const line of lines) {
+      if (line.startsWith('## ') && foundFirstHeading) {
+        break; // Stop at the first ## heading after we've started
+      }
+      if (line.startsWith('# ')) {
+        foundFirstHeading = true;
+      }
+      firstSectionLines.push(line);
+    }
+    
+    const firstSection = firstSectionLines.join('\n');
+    
+    // Convert to HTML using the same function as for instructions
+    var converter = new showdown.Converter()
+    // converter.setFlavor('github');
+    converter.setOption('disableForced4SpacesIndentedSublists', true);
+    converter.setOption('headerLevelStart', 4)
+    converter.setOption('simpleLineBreaks', true)
+    /*converter.setOption('smartIndentationFix', true);*/
+    const htmlContent = converter.makeHtml(firstSection);
+    
+    modalBody.innerHTML = htmlContent;
+    modalBody.dataset.loaded = "true";
+    
+  } catch (error) {
+    console.warn('Could not load README content:', error);
+    modalBody.innerHTML = '<p>Unable to load content. Please visit our <a href="https://github.com/euraf/agroforestry-gallery" target="_blank">GitHub repository</a> for more information.</p>';
+  }
 }

@@ -113,6 +113,9 @@ body {
 #add-photos-content > div > ul > li > ul {
   margin-left: 20px;
 }
+#aboutModalBody h4:first-of-type {
+  display: none;
+}
 .offcanvas-header h4 {
   color: var(--dark-blue);
   font-weight: bold;
