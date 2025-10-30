@@ -326,6 +326,10 @@ body {
 #open-about.sticky-btn-right {
   top: 15px;
 }
+#open-embed.sticky-btn-right {
+  top: 15px;
+  right: 125px;
+}
 .sticky-btn-right {
   right: 20px;
 }

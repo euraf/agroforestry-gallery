@@ -86,6 +86,9 @@
     <button class="sticky-btn-right" id="open-add-photos">
       <span>&#128247;</span><span class="sticky-btn-text"> Add Photo</span>
     </button>
+    <button class="sticky-btn-right" id="open-embed">
+      <span>&#128279;</span><span class="sticky-btn-text"> Embed</span>
+    </button>
     <!-- About Modal Section -->
     <div class="modal fade" id="aboutModal" tabindex="-1" role="dialog" aria-labelledby="aboutModalLabel"
       aria-hidden="true">
@@ -127,6 +130,20 @@
       <div class="instructions-section">
         <!-- Instructions will be loaded dynamically from zenodo-upload-instructions.md -->
         <p>📷 Loading upload instructions...</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Off-Canvas Embedding Instructions Sidebar -->
+  <div class="offcanvas-add-photos" id="embedDrawer">
+    <div class="offcanvas-header">
+      <h4>Embed Gallery</h4>
+      <button class="close-button" id="close-embed">&times;</button>
+    </div>
+    <div id="embed-content" class="add-photos-content">
+      <div class="instructions-section">
+        <!-- Instructions will be loaded dynamically from embedding-instructions.md -->
+        <p>🔗 Loading embedding instructions...</p>
       </div>
     </div>
   </div>

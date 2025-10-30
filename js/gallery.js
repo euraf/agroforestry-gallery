@@ -939,6 +939,23 @@ document.getElementById("close-add-photos")?.addEventListener("click", () => {
   if (d) d.classList.remove("visible");
 });
 
+// --- ADD: wire open/close for the Embed drawer and lazy-load its content ---
+document
+  .getElementById("open-embed")
+  ?.addEventListener("click", async () => {
+    const d = document.getElementById("embedDrawer");
+    if (!d) return;
+    
+    // Load Markdown instructions if not already loaded
+    await loadEmbeddingInstructions();
+    
+    d.classList.toggle("visible");
+  });
+document.getElementById("close-embed")?.addEventListener("click", () => {
+  const d = document.getElementById("embedDrawer");
+  if (d) d.classList.remove("visible");
+});
+
 // Helper: render the gallery from filteredPhotos (clears previous content and reuses appendPhotosToGallery)
 function renderFilteredGallery() {
   if (!gallery) return;
@@ -1062,6 +1079,41 @@ async function loadZenodoInstructions() {
     
   } catch (error) {
     console.warn('Could not load Zenodo instructions from Markdown file:', error);
+    // Keep existing HTML content as fallback
+  }
+}
+
+// Function to load and display embedding instructions from Markdown file
+async function loadEmbeddingInstructions() {
+  const contentContainer = document.getElementById("embed-content");
+  if (!contentContainer) return;
+  
+  // Check if instructions are already loaded
+  if (contentContainer.dataset.loaded === "true") return;
+  
+  try {
+    const response = await fetch('./embedding-instructions.md');
+    if (!response.ok) throw new Error('Failed to load embedding instructions');
+    
+    const markdownText = await response.text();
+    var converter = new showdown.Converter()
+    converter.setOption('disableForced4SpacesIndentedSublists', true);
+    converter.setOption('headerLevelStart', 4)
+    converter.setOption('simpleLineBreaks', true)
+    const htmlContent = converter.makeHtml(markdownText);
+    
+    // Replace the existing content
+    contentContainer.innerHTML = `
+      <div class="instructions-section">
+        ${htmlContent}
+      </div>
+    `;
+    
+    // Mark as loaded
+    contentContainer.dataset.loaded = "true";
+    
+  } catch (error) {
+    console.warn('Could not load embedding instructions from Markdown file:', error);
     // Keep existing HTML content as fallback
   }
 }
