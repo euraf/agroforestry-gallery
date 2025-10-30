@@ -9,4 +9,23 @@ Its decentralized workflow is simple yet sustainable: contributors submit photos
 
 **By participating, you not only share your own perspective on agroforestry but also support an open, collaborative approach to knowledge sharing that reflects EURAF's values**.
 
+## How to Upload Photos
+
+Detailed step-by-step instructions for uploading photos to the gallery are available in the [`zenodo-upload-instructions.md`](./zenodo-upload-instructions.md) file. These instructions are also dynamically loaded and displayed in the gallery's "Add Photo" interface.
+
+The upload process involves:
+1. Creating a Zenodo account if you don't have one
+2. Uploading your photo to the EURAF agroforestry-media community
+3. Adding proper metadata including EURAF typology keywords
+4. Optionally adding coordinates for geo-tagged photos
+
+### Technical Implementation
+
+The gallery dynamically loads upload instructions from the Markdown file using JavaScript, providing a clean separation between content and code. This approach allows for:
+
+- Easy content updates without modifying HTML
+- Version control of instructions
+- Reusable content across different interfaces
+- Improved maintainability
+
 To learn more, contribute, or explore how this gallery can enrich your own platform, visit [DigitAF](https://digitaf.eu).

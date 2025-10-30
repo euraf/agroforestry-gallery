@@ -106,6 +106,13 @@ body {
     right: 10px;
     top: 0;
 }
+.instructions-section h4:first-of-type {
+  display: none;
+}
+#add-photos-content > div > ul,
+#add-photos-content > div > ul > li > ul {
+  margin-left: 20px;
+}
 .offcanvas-header h4 {
   color: var(--dark-blue);
   font-weight: bold;

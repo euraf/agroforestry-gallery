@@ -928,6 +928,10 @@ document
   ?.addEventListener("click", async () => {
     const d = document.getElementById("addPhotosDrawer");
     if (!d) return;
+    
+    // Load Markdown instructions if not already loaded
+    await loadZenodoInstructions();
+    
     d.classList.toggle("visible");
   });
 document.getElementById("close-add-photos")?.addEventListener("click", () => {
@@ -1023,4 +1027,96 @@ function clearActiveFilter() {
   document
     .querySelectorAll(".word-filter")
     .forEach((b) => b.classList.remove("active"));
+}
+
+// Function to load and display Zenodo instructions from Markdown file
+async function loadZenodoInstructions() {
+  const contentContainer = document.getElementById("add-photos-content");
+  if (!contentContainer) return;
+  
+  // Check if instructions are already loaded
+  if (contentContainer.dataset.loaded === "true") return;
+  
+  try {
+    const response = await fetch('./zenodo-upload-instructions.md');
+    if (!response.ok) throw new Error('Failed to load instructions');
+    
+    const markdownText = await response.text();
+    var converter = new showdown.Converter()
+    // converter.setFlavor('github');
+    converter.setOption('disableForced4SpacesIndentedSublists', true);
+    converter.setOption('headerLevelStart', 4)
+    /*converter.setOption('smartIndentationFix', true);*/
+    const htmlContent = converter.makeHtml(markdownText);
+    
+    // Replace the existing content
+    contentContainer.innerHTML = `
+      <div class="instructions-section">
+        ${htmlContent}
+      </div>
+    `;
+    
+    // Mark as loaded
+    contentContainer.dataset.loaded = "true";
+    
+  } catch (error) {
+    console.warn('Could not load Zenodo instructions from Markdown file:', error);
+    // Keep existing HTML content as fallback
+  }
+}
+
+// Simple Markdown to HTML converter for basic formatting
+function simpleMarkdownToHtml(markdown) {
+  let html = markdown;
+  
+  // Headers - skip H1 titles, only convert H2 and H3
+  html = html.replace(/^### (.*$)/gim, '<p><strong>$1</strong></p>');
+  html = html.replace(/^## (.*$)/gim, '<p><strong>$1</strong></p>');
+  // Remove H1 headers entirely (don't convert to HTML)
+  html = html.replace(/^# .*$/gim, '');
+  
+  // Bold text
+  html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
+  
+  // Italic text
+  html = html.replace(/\*(.*?)\*/gim, '<em>$1</em>');
+  
+  // Links
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  
+  // Code inline
+  html = html.replace(/`([^`]+)`/gim, '<code>$1</code>');
+  
+  // Lists - convert markdown lists to HTML
+  // Handle numbered lists
+  html = html.replace(/^\s*\d+\.\s+(.*)$/gim, '<li class="numbered">$1</li>');
+  // Handle bullet lists  
+  html = html.replace(/^\s*[-*]\s+(.*)$/gim, '<li class="bullet">$1</li>');
+  
+  // Wrap consecutive <li> elements in <ol> or <ul>
+  html = html.replace(/(<li class="numbered">.*?<\/li>(?:\s*<li class="numbered">.*?<\/li>)*)/gim, function(match, listItems) {
+    return `<ol>${listItems.replace(/ class="numbered"/g, '')}</ol>`;
+  });
+  
+  html = html.replace(/(<li class="bullet">.*?<\/li>(?:\s*<li class="bullet">.*?<\/li>)*)/gim, function(match, listItems) {
+    return `<ul>${listItems.replace(/ class="bullet"/g, '')}</ul>`;
+  });
+  
+  // Paragraphs - split by double line breaks
+  const paragraphs = html.split(/\n\s*\n/);
+  html = paragraphs.map(p => {
+    p = p.trim();
+    if (!p) return '';
+    // Don't wrap if already wrapped in HTML tags
+    if (p.match(/^<(h[1-6]|ul|ol|li|div|p)/)) return p;
+    return `<p>${p}</p>`;
+  }).join('\n');
+  
+  // Emoji highlighting for new content
+  html = html.replace(/🆕/g, '<span style="background-color: yellow;">🆕</span>');
+  
+  // Convert line breaks to <br> within paragraphs
+  html = html.replace(/\n/g, '<br>');
+  
+  return html;
 }
