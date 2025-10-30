@@ -1,5 +1,5 @@
 // Debug mode - set to true to prevent API calls to Zenodo
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 
 const albumKeywords = [
   "Silvopastoral",
