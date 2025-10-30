@@ -1,3 +1,6 @@
+// Debug mode - set to true to prevent API calls to Zenodo
+const DEBUG_MODE = true;
+
 const albumKeywords = [
   "Silvopastoral",
   "Silvoarable",
@@ -90,16 +93,24 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   try {
-    // Fetch total count first (fast, size=0)
-    try {
-      totalRecords = await fetchTotalCount(["euraf-media"]);
-    } catch (err) {
-      console.warn("Could not fetch total count:", err);
-      totalRecords = null;
-    }
-    showTopProgressBar(); // create UI even if totalRecords is null
+    if (DEBUG_MODE) {
+      console.log("DEBUG MODE: Skipping Zenodo API calls");
+      // Use mock data for testing
+      photos = [];
+      totalRecords = 0;
+      showTopProgressBar();
+    } else {
+      // Fetch total count first (fast, size=0)
+      try {
+        totalRecords = await fetchTotalCount(["euraf-media"]);
+      } catch (err) {
+        console.warn("Could not fetch total count:", err);
+        totalRecords = null;
+      }
+      showTopProgressBar(); // create UI even if totalRecords is null
 
-    await fetchZenodoPhotosIncremental(["euraf-media"]);
+      await fetchZenodoPhotosIncremental(["euraf-media"]);
+    }
 
     // Ensure filteredPhotos defaults to all fetched photos after initial load
     filteredPhotos = photos.slice();
@@ -129,6 +140,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // Incremental fetch: fetch page-by-page and append each page immediately
 async function fetchZenodoPhotosIncremental(communities) {
+  if (DEBUG_MODE) {
+    console.log("DEBUG MODE: Skipping fetchZenodoPhotosIncremental");
+    return [];
+  }
+  
   let allPhotosCount = 0;
   for (const community of communities) {
     let apiUrl = `https://zenodo.org/api/records?size=50&sort=mostrecent&communities=${community}&type=image`;
@@ -174,6 +190,11 @@ async function fetchZenodoPhotosIncremental(communities) {
 
 // New: fetch total records count using size=0 (very small response)
 async function fetchTotalCount(communities) {
+  if (DEBUG_MODE) {
+    console.log("DEBUG MODE: Skipping fetchTotalCount");
+    return 0;
+  }
+  
   let sum = 0;
   for (const community of communities) {
     const url = `https://zenodo.org/api/records?communities=${encodeURIComponent(
