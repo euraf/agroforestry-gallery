@@ -147,7 +147,7 @@ async function fetchZenodoPhotosIncremental(communities) {
   
   let allPhotosCount = 0;
   for (const community of communities) {
-    let apiUrl = `https://zenodo.org/api/records?size=50&sort=mostrecent&communities=${community}&type=image`;
+    let apiUrl = `https://zenodo.org/api/records?size=25&sort=mostrecent&communities=${community}&type=image`;
 
     while (apiUrl) {
       // footer messages removed — keep debug logs instead
