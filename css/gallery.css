@@ -302,43 +302,89 @@ body {
 .filter-chip:hover { background: rgba(0,86,179,0.06); }
 
 /* Sticky Buttons */
+@media (max-width: 767.98px) {
+  .sticky-btn,
+  .sticky-btn-right {
+    display: none !important;
+  }
+}
 .sticky-btn,
 .sticky-btn-right {
   position: fixed;
-  top: 70px;
-  background-color: #f0f4f8; /* Light neutral background */
-  color: #253d5b; /* Dark blue text */
+  background-color: #f0f4f8;
+  color: #253d5b;
   font-size: 1rem;
-  padding: 8px 18px; /* More standard button padding */
-  border: 1px solid #b6e2c6; /* Soft green border */
-  border-radius: 6px; /* Slightly rounded corners */
+  padding: 8px 18px;
+  border: 1px solid #b6e2c6;
+  border-radius: 6px;
   cursor: pointer;
-  box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.08); /* Subtle shadow */
+  box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.08);
   z-index: 1000;
   transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+  margin-bottom: 12px;
 }
-.sticky-btn {
-  left: 20px;
+.sticky-btn { left: 20px; }
+.sticky-btn-right { right: 20px; }
+
+/* Space floating buttons vertically and horizontally */
+@media (min-width: 768px) {
+  .d-md-flex.justify-content-center.gap-3 > .sticky-btn,
+  .d-md-flex.justify-content-center.gap-3 > .sticky-btn-right {
+    position: static;
+    margin: 0 8px 0 0;
+    top: auto;
+    left: auto;
+    right: auto;
+    display: inline-flex;
+    vertical-align: middle;
+  }
+  .d-md-flex.justify-content-center.gap-3 {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+  }
 }
-#open-filter.sticky-btn {
-  top: 15px;
-}
-#open-about.sticky-btn-right {
-  top: 15px;
-}
-#open-embed.sticky-btn-right {
-  top: 15px;
-  right: 125px;
-}
-.sticky-btn-right {
-  right: 20px;
-}
+
+.sticky-btn { left: 20px; }
+.sticky-btn-right { right: 20px; }
 .sticky-btn:hover,
 .sticky-btn-right:hover {
-  background-color: #eafbe7; /* Soft green on hover */
-  color: #008b00; /* Green text on hover */
+  background-color: #eafbe7;
+  color: #008b00;
   box-shadow: 0px 4px 16px rgba(0, 139, 0, 0.13);
-  transform: none; /* Remove scale effect */
+  transform: none;
+}
+.sticky-btn-right span {
+  margin-right: 5px;
+}
+
+/* Responsive button row for small devices */
+@media (max-width: 767.98px) {
+  .btn-group.btn-group-sm.w-100 {
+    margin-bottom: 1rem;
+    gap: 0.5rem;
+  }
+  .btn-group.btn-group-sm.w-100 .btn {
+    flex: 1 1 0;
+    min-width: 0;
+    font-size: 1.1em;
+    padding: 0.7em 0.2em;
+    border-radius: 6px;
+    border: 1px solid #b6e2c6;
+    background: #f0f4f8;
+    color: #253d5b;
+    box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.08);
+    transition: background 0.2s, color 0.2s;
+  }
+  .btn-group.btn-group-sm.w-100 .btn:active,
+  .btn-group.btn-group-sm.w-100 .btn:focus,
+  .btn-group.btn-group-sm.w-100 .btn:hover {
+    background: #eafbe7;
+    color: #008b00;
+  }
 }
 
 /* Icon Overlay */
@@ -654,3 +700,15 @@ img {
   border-radius: 50%;
   display: block;
 }
+
+/* Align button group on small screens */
+@media (max-width: 767.98px) {
+  .btn-group.btn-group-sm.w-100 .btn {
+    flex: 1 1 0;
+    min-width: 0;
+    font-size: 1.1em;
+    padding: 0.7em 0.2em;
+  }
+}
+
+/* filepath: c:\xampp\htdocs\tools\dev\agroforestry-gallery\css\gallery.css */

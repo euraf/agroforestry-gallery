@@ -49,8 +49,6 @@ const barContainer = document.getElementById("gallery-loading-bar-container");
 const bar = document.getElementById("gallery-loading-bar");
 const barText = document.getElementById("gallery-loading-bar-text");
 const footermessage = document.getElementById("footermessage");
-const openMapBtn = document.getElementById("open-map");
-const openGalleryBtn = document.getElementById("open-gallery");
 
 // keep footer content hidden / discrete (we don't print status messages there)
 if (footermessage) footermessage.style.display = "none";
@@ -76,7 +74,8 @@ function hideLoadingBar() {
   if (!barContainer) return;
   setTimeout(() => {
     barContainer.style.display = "none";
-    if (openMapBtn) openMapBtn.style.display = "inline-block";
+    // Show all map buttons when loading bar hides (if needed)
+    document.querySelectorAll('.btn-map').forEach(b => b.style.display = 'inline-block');
   }, 400);
 }
 
@@ -649,33 +648,34 @@ function initMagnificPopup() {
 }
 
 // Map toggle handlers (unchanged DOM show/hide but ensure markers use filteredPhotos)
-if (openMapBtn) {
-  openMapBtn.addEventListener("click", function () {
-    document.getElementById("gallery").style.display = "none";
-    document.getElementById("gallery-map").style.display = "block";
-    openMapBtn.style.display = "none";
-    if (openGalleryBtn) openGalleryBtn.style.display = "block";
-
+document.querySelectorAll('.btn-map').forEach(btn => {
+  btn.addEventListener('click', function () {
+    document.getElementById('gallery').style.display = 'none';
+    document.getElementById('gallery-map').style.display = 'block';
+    // Hide all map buttons, show all gallery buttons
+    document.querySelectorAll('.btn-map').forEach(b => b.style.display = 'none');
+    document.querySelectorAll('.btn-gallery').forEach(b => b.style.display = 'inline-block');
     // initialize map and generate markers for the current filtered set
     initGalleryMap();
     generateMapMarkers(filteredPhotos.length ? filteredPhotos : photos);
   });
-}
-if (openGalleryBtn) {
-  openGalleryBtn.addEventListener("click", function () {
-    document.getElementById("gallery").style.display = "block";
-    document.getElementById("gallery-map").style.display = "none";
-    if (openMapBtn) openMapBtn.style.display = "block";
-    openGalleryBtn.style.display = "none";
+});
+document.querySelectorAll('.btn-gallery').forEach(btn => {
+  btn.addEventListener('click', function () {
+    document.getElementById('gallery').style.display = 'block';
+    document.getElementById('gallery-map').style.display = 'none';
+    // Hide all gallery buttons, show all map buttons
+    document.querySelectorAll('.btn-gallery').forEach(b => b.style.display = 'none');
+    document.querySelectorAll('.btn-map').forEach(b => b.style.display = 'inline-block');
     // re-render gallery from current filteredPhotos so the view is up-to-date
     try {
       renderFilteredGallery();
       updateTopProgress();
     } catch (e) {
-      console.warn("Error updating gallery on toggle:", e);
+      console.warn('Error updating gallery on toggle:', e);
     }
   });
-}
+});
 
 // small helper to safely escape text inserted into popup HTML
 function escapeHtml(str) {
@@ -913,9 +913,11 @@ async function loadhtmlContent(htmlpage, ObjID2inject) {
 }
 
 // wire open/close for the filter drawer
-document.getElementById("open-filter")?.addEventListener("click", () => {
-  const d = document.getElementById("wordcloudDrawer");
-  if (d) d.classList.toggle("visible");
+document.querySelectorAll('.btn-filter').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const d = document.getElementById('wordcloudDrawer');
+    if (d) d.classList.toggle('visible');
+  });
 });
 document.getElementById("close-filter")?.addEventListener("click", () => {
   const d = document.getElementById("wordcloudDrawer");
@@ -923,34 +925,30 @@ document.getElementById("close-filter")?.addEventListener("click", () => {
 });
 
 // --- ADD: wire open/close for the Add Photo drawer and lazy-load its content ---
-document
-  .getElementById("open-add-photos")
-  ?.addEventListener("click", async () => {
-    const d = document.getElementById("addPhotosDrawer");
+document.querySelectorAll('.btn-add-photos').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const d = document.getElementById('addPhotosDrawer');
     if (!d) return;
-    
     // Load Markdown instructions if not already loaded
     await loadZenodoInstructions();
-    
-    d.classList.toggle("visible");
+    d.classList.toggle('visible');
   });
+});
 document.getElementById("close-add-photos")?.addEventListener("click", () => {
   const d = document.getElementById("addPhotosDrawer");
   if (d) d.classList.remove("visible");
 });
 
 // --- ADD: wire open/close for the Embed drawer and lazy-load its content ---
-document
-  .getElementById("open-embed")
-  ?.addEventListener("click", async () => {
-    const d = document.getElementById("embedDrawer");
+document.querySelectorAll('.btn-embed').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const d = document.getElementById('embedDrawer');
     if (!d) return;
-    
     // Load Markdown instructions if not already loaded
     await loadEmbeddingInstructions();
-    
-    d.classList.toggle("visible");
+    d.classList.toggle('visible');
   });
+});
 document.getElementById("close-embed")?.addEventListener("click", () => {
   const d = document.getElementById("embedDrawer");
   if (d) d.classList.remove("visible");
@@ -1118,12 +1116,12 @@ async function loadEmbeddingInstructions() {
   }
 }
 
-document
-  .getElementById("open-about")
-  .addEventListener("click", async function () {
+document.querySelectorAll('.btn-about').forEach(btn => {
+  btn.addEventListener('click', async function () {
     await loadAboutContent();
     $("#aboutModal").modal("show");
   });
+});
 
 // Function to load README content into About modal
 async function loadAboutContent() {

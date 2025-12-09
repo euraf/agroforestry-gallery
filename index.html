@@ -41,6 +41,31 @@
     <h1>Agroforestry Gallery</h1>
 
     <h4 class="subheading">Permanent Exposition</h4>
+    
+    <!-- Responsive button row for small devices -->
+    <div class="d-block d-md-none my-3">
+      <div class="btn-group btn-group-sm w-100" role="group" aria-label="Gallery actions">
+        <button class="btn btn-light btn-filter" id="open-filter-sm">
+          <span>&#128269;</span>
+        </button>
+        <button class="btn btn-light btn-map" id="open-map-sm" style="display: none">
+          <span>&#128506;</span>
+        </button>
+        <button class="btn btn-light btn-gallery" id="open-gallery-sm" style="display: none">
+          <span>&#128444;</span>
+        </button>
+        <button class="btn btn-light btn-about" id="open-about-sm">
+          <span>&#8505;</span>
+        </button>
+        <button class="btn btn-light btn-add-photos" id="open-add-photos-sm">
+          <span>&#128247;</span>
+        </button>
+        <button class="btn btn-light btn-embed" id="open-embed-sm">
+          <span>&#128279;</span>
+        </button>
+      </div>
+    </div>
+
     <div class="info-box">
       <span>
         Every photo in this gallery is here to stay! Each one tells a unique
@@ -52,8 +77,8 @@
       </span>
     </div>
     <div class="row no-gutters">
-      <div class="col-4"></div>
-      <div class="col-4">
+      <div class="col-md-4 d-none d-md-block"></div>
+      <div class="col-12 col-md-4">
         <div class="visualizations-counter mt-3 d-inline-block mb-3 px-3 py-2 rounded shadow-sm"
           style="background: #eafbe7; border-left: 4px solid #008b00">
           <div style="display:flex;align-items:center;gap:12px">
@@ -65,31 +90,33 @@
           </div>
         </div>
       </div>
-      <div id="active-filters" class="col-4"></div>
+      <div class="col-md-4 d-none d-md-block"></div>
     </div>
   </section>
 
   <!-- Floating button on the top-left -->
-  <div class="d-flex justify-content-center align-items-a my-3 gap-3">
-    <button class="sticky-btn" id="open-filter">
+  <div class="d-none d-md-flex justify-content-center align-items-a my-3 gap-3">
+    <button class="sticky-btn btn-filter" id="open-filter-lg">
       <span>&#128269;</span><span class="sticky-btn-text"> Filters</span>
     </button>
-    <button class="sticky-btn" id="open-map" style="display: none">
+    <button class="sticky-btn btn-map" id="open-map-lg" style="display: none">
       <span>&#128506;</span><span class="sticky-btn-text"> Map</span>
     </button>
-    <button class="sticky-btn" id="open-gallery" style="display: none">
+    <button class="sticky-btn btn-gallery" id="open-gallery-lg" style="display: none">
       <span>&#128444;</span><span class="sticky-btn-text"> Gallery</span>
     </button>
-    <button class="sticky-btn-right" id="open-about" type="button">
+    <button class="sticky-btn-right btn-about" id="open-about-lg" type="button">
       <span>&#8505;</span><span class="sticky-btn-text"> About</span>
     </button>
-    <button class="sticky-btn-right" id="open-add-photos">
+    <button class="sticky-btn-right btn-add-photos" id="open-add-photos-lg">
       <span>&#128247;</span><span class="sticky-btn-text"> Add Photo</span>
     </button>
-    <button class="sticky-btn-right" id="open-embed">
+    <button class="sticky-btn-right btn-embed" id="open-embed-lg">
       <span>&#128279;</span><span class="sticky-btn-text"> Embed</span>
     </button>
-    <!-- About Modal Section -->
+  </div>
+
+  <!-- About Modal Section -->
     <div class="modal fade" id="aboutModal" tabindex="-1" role="dialog" aria-labelledby="aboutModalLabel"
       aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
@@ -108,7 +135,6 @@
         </div>
       </div>
     </div>
-  </div>
 
   <!-- Off-Canvas Word Cloud Sidebar -->
   <div class="offcanvas-wordcloud" id="wordcloudDrawer">
@@ -211,6 +237,7 @@
   </noscript>
 
   <script src="js/gallery.js" defer></script>
+  
 </body>
 
 </html>
