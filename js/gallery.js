@@ -258,12 +258,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       try {
         totalRecords = await fetchTotalCount(["euraf-media"]);
       } catch (err) {
+        showTemporaryWarning("Could not load the gallery (network or server error). Please check your connection and try again.", 7000);
         console.warn("Could not fetch total count:", err);
         totalRecords = null;
+        throw err;
       }
       showTopProgressBar(); // create UI even if totalRecords is null
 
-      await fetchZenodoPhotosIncremental(["euraf-media"]);
+      try {
+        await fetchZenodoPhotosIncremental(["euraf-media"]);
+      } catch (err) {
+        showTemporaryWarning("Could not load the gallery (network or server error). Please check your connection and try again.", 7000);
+        console.error("Error fetching Zenodo photos:", err);
+        throw err;
+      }
     }
 
     // Ensure filteredPhotos defaults to all fetched photos after initial load
@@ -302,8 +310,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     // After all photos are loaded, apply the current sorting
     buildGalleryPaginated(currentPage);
   } catch (err) {
+    // Show a user-friendly error message if not already shown
+    showTemporaryWarning("Could not load the gallery (network or server error). Please check your connection and try again.", 7000);
     console.error("Error fetching Zenodo photos:", err);
-    // footer messages removed per request
   } finally {
     if (dotsInterval) clearInterval(dotsInterval);
     if (barText) barText.textContent = "Fetched photos from Zenodo";
