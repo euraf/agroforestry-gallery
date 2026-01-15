@@ -1,3 +1,106 @@
+/* --- Gallery filtering fade animation --- */
+.grid-item {
+  opacity: 1;
+  transition: opacity 0.45s cubic-bezier(.4,0,.2,1), visibility 0.45s cubic-bezier(.4,0,.2,1);
+  visibility: visible;
+}
+.grid-item.fading-out {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.45s cubic-bezier(.4,0,.2,1), visibility 0.45s cubic-bezier(.4,0,.2,1);
+}
+/* --- Off-canvas/Drawer Panels --- */
+.drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 340px;
+  max-width: 90vw;
+  background: #fff;
+  box-shadow: 0 0 16px rgba(0,0,0,0.18);
+  z-index: 1200;
+  overflow-y: auto;
+  transition: transform 0.35s cubic-bezier(.4,0,.2,1), opacity 0.25s;
+  opacity: 0;
+  pointer-events: none;
+}
+.drawer-left {
+  left: 0;
+  transform: translateX(-100%);
+  border-right: 1px solid #e0e0e0;
+}
+.drawer-right {
+  right: 0;
+  transform: translateX(100%);
+  border-left: 1px solid #e0e0e0;
+}
+.drawer.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+@media (max-width: 600px) {
+  .drawer {
+    width: 98vw;
+    max-width: 98vw;
+  }
+}
+/* Hide drawers by default */
+#wordcloudDrawer:not(.visible),
+#addPhotosDrawer:not(.visible),
+#embedDrawer:not(.visible) {
+  display: none !important;
+}
+/* --- Progress Bar Styles moved from JS --- */
+.hidden {
+  display: none !important;
+}
+.show {
+  display: block !important;
+}
+.top-progress-container {
+  display: block;
+  text-align: center;
+  margin: 12px auto;
+  max-width: 700px;
+}
+.top-progress-inner {
+  display: inline-block;
+  text-align: left;
+  width: 100%;
+  max-width: 560px;
+}
+.top-progress-label {
+  font-size: 13px;
+  color: #333;
+  margin-bottom: 6px;
+}
+.top-progress {
+  width: 100%;
+  height: 12px;
+  background: #eee;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.top-progress-bar {
+  width: 0%;
+  height: 100%;
+  background: #28a745;
+  transition: width 300ms ease;
+}
+.top-progress-bar.progress-complete {
+  background: #28a745;
+}
+/* --- Gallery grid-item fade-in moved from JS --- */
+.grid-item-hidden {
+  opacity: 0;
+  transition: opacity 0.5s;
+}
+.grid-item {
+  opacity: 1;
+  transition: opacity 0.5s;
+}
 /* Root variables */
 :root {
   --dark-blue: #253d5b;
@@ -60,82 +163,75 @@ body {
 }
 
 /* Off-canvas panels */
+
+.close-button {
+    font-size: 24px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #333;
+}
+
 .offcanvas-wordcloud,
 .offcanvas-add-photos {
   position: fixed;
   top: 0;
-  width: 300px;
-  height: 100%;
+  bottom: 0;
+  width: 385px;
+  max-width: 90vw;
   background-color: #f8f9fa;
-  z-index: 1001;
+  box-shadow: 0 0 16px rgba(0,0,0,0.18);
+  z-index: 1200;
+  overflow-y: auto;
+  transition: transform 0.35s cubic-bezier(.4,0,.2,1), opacity 0.25s;
+  opacity: 0;
+  pointer-events: none;
   padding: 5px;
-  margin: 0;
-  /* Remove box-shadow from scrollbars and container */
-  box-shadow: none;
 }
 .offcanvas-wordcloud {
-  left: -300px;
-  max-height: 100vh;
-  overflow-y: auto;
-  transition: left 0.3s ease;
-}
-.offcanvas-wordcloud.visible {
   left: 0;
+  transform: translateX(-100%);
+  border-right: 1px solid #e0e0e0;
+  font-size: 0.8rem;
 }
 .offcanvas-add-photos {
-  right: -360px;               /* hide offscreen by default */
-  width: 360px;                /* slightly wider for form/content */
-  transition: right 0.32s ease;
-  max-height: 100vh;
-  overflow-y: auto;
-  z-index: 1002;               /* above other panels */
-  padding: 10px;
-  box-sizing: border-box;
+  right: 0;
+  transform: translateX(100%);
+  border-left: 1px solid #e0e0e0;
 }
+.offcanvas-wordcloud.visible,
 .offcanvas-add-photos.visible {
-  right: 0;                    /* slide into view */
-}
-
-/* Off-canvas header */
-.offcanvas-header {
-  text-align: center;
-  padding-bottom: 5px;
-}
-.offcanvas-header button {
-  position: absolute;
-    right: 10px;
-    top: 0;
-}
-.instructions-section h4:first-of-type {
-  display: none;
-}
-#add-photos-content > div > ul,
-#add-photos-content > div > ul > li > ul {
-  margin-left: 20px;
-}
-#aboutModalBody h4:first-of-type {
-  display: none;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
 }
 .offcanvas-header h4 {
   color: var(--dark-blue);
   font-weight: bold;
   margin: 0;
+  text-align: center;
 }
-
-.close-button {
-  font-size: 24px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #333;
+.offcanvas-header button {
+    position: absolute;
+    right: 10px;
+    top: 0;
 }
-
-/* Word cloud */
-.offcanvas-wordcloud {
-  font-size: 0.8em;
+.instructions-section h4:first-of-type {
+    display: none;
 }
-.word-cloud {
-  margin-top: 20px;
+@media (max-width: 600px) {
+  .offcanvas-wordcloud,
+  .offcanvas-add-photos {
+    width: 98vw;
+    max-width: 98vw;
+    padding: 18px 6px 12px 6px;
+  }
+}
+/* Hide drawers by default */
+#wordcloudDrawer:not(.visible),
+#addPhotosDrawer:not(.visible),
+#embedDrawer:not(.visible) {
+  display: none !important;
 }
 .word-cloud .word-filter {
   display: inline-block;
@@ -203,6 +299,10 @@ body {
   list-style-type: disc;
 }
 
+#add-photos-content > div > ul,
+#add-photos-content > div > ul > li > ul {
+  margin-left: 20px;
+}
 .euraf-af-list p {
   margin: 0;
 }
@@ -387,25 +487,6 @@ body {
   }
 }
 
-/* Icon Overlay */
-.icon-overlay {
-  position: inherit;
-  bottom: -1px;
-  right: -3px;
-  color: #fff;
-  padding: 5px;
-  font-size: 12px;
-  z-index: 10;
-  transition: background-color 0.3s ease;
-  text-align: center;
-  line-height: 1;
-  border-radius: 50%;
-  text-decoration: none;
-}
-.icon-overlay:hover {
-  text-decoration: none;
-}
-
 /* Magnific Popup */
 .mfp-title {
   font-size: 18px;
@@ -474,46 +555,42 @@ img {
   border-radius: 5px;
 }
 
-/* Grid Items */
-.grid-sizer,
+/* Masonry Grid using CSS columns */
+.grid {
+  column-count: 1;
+  column-gap: 0.5em;
+}
+@media (min-width: 500px) {
+  .grid {
+    column-count: 2;
+  }
+}
+@media (min-width: 900px) {
+  .grid {
+    column-count: 3;
+  }
+}
+@media (min-width: 1200px) {
+  .grid {
+    column-count: 4;
+  }
+}
+@media (min-width: 1600px) {
+  .grid {
+    column-count: 5;
+  }
+}
 .grid-item {
+  display: inline-block;
   width: 100%;
-  margin: 0;
-  padding: 1px;
+  margin: 0 0 0.5em 0;
+  break-inside: avoid;
+  vertical-align: top;
+  box-sizing: border-box;
+  padding: 2px;
 }
-
-/* Responsive Grid */
-@media only screen and (max-width: 350px) {
-  .grid-sizer,
-  .grid-item {
-    width: 50%;
-    margin: 0;
-    padding: 1px;
-  }
-  #wordcloudDrawer {
-    display: block;
-  }
-  #wordcloudDrawer.visible {
-    display: block;
-  }
-}
-
-@media only screen and (min-width: 351px) and (max-width: 767px) {
-  .grid-sizer,
-  .grid-item {
-    width: 33.3%;
-    margin: 0;
-    padding: 1px;
-  }
-}
-
-@media only screen and (min-width: 768px) {
-  .grid-sizer,
-  .grid-item {
-    width: 20%;
-    margin: 0;
-    padding: 1px;
-  }
+.grid-sizer {
+  display: none;
 }
 
 .action-icon {
@@ -532,80 +609,6 @@ img {
   border-radius: 5px;
 }
 
-.grid-sizer,
-.grid-item {
-  width: 100%;
-  margin: 0px;
-  padding: 1px;
-  /* vertical-align: center; */
-}
-
-@media only screen and (max-width: 350px) {
-  .grid-sizer,
-  .grid-item {
-    width: 50%;
-    margin: 0px;
-    vertical-align: center;
-    padding: 1px;
-  }
-  #wordcloudDrawer {
-    display: block; /* Initially hide */
-  }
-
-  #wordcloudDrawer.visible {
-    display: block; /* Show when it's toggled to visible */
-  }
-  .info-box {
-    font-size: 0.7rem;
-    margin: 0 1rem;
-  }
-  .sticky-btn-text {
-    display: none;
-  }
-
-}
-
-@media only screen and (min-width: 350px) and (max-width: 767px) {
-  .grid-sizer,
-  .grid-item {
-    width: 33.3%;
-    margin: 0px;
-    vertical-align: center;
-    padding: 1px;
-  }
-  .info-box {
-    font-size: 0.7rem;
-    margin: 0 1rem;
-  }
-  .sticky-btn {
-    padding: 0.5rem;
-  }
-  .sticky-btn-text {
-    display: none;
-  }
-  .gallery-header {
-    margin-top: 1rem;
-  }
-  .gallery-header h1 {
-    font-size: 2rem;
-    margin: 0 3rem;
-  }
-  .gallery-header h4 {
-    font-size: 1.5rem;
-    margin: 0.5rem 3rem;
-  }
-}
-
-@media only screen and (min-width: 767px) {
-  .grid-sizer,
-  .grid-item {
-    width: 20%;
-    margin: 0px;
-    padding: 0px;
-    vertical-align: center;
-    padding: 1px;
-  }
-}
 
 /* Extra space for pagination */
 .gallery-pagination {
@@ -711,4 +714,49 @@ img {
   }
 }
 
-/* filepath: c:\xampp\htdocs\tools\dev\agroforestry-gallery\css\gallery.css */
+/* Position globe icon in top right of photo */
+.photo-img-wrapper {
+  position: relative;
+}
+
+.globe-top-right {
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  z-index: 2;
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+.globe-top-right:hover {
+  text-decoration: none;
+}
+
+
+/* --- GitHub-style code block styling --- */
+  pre {
+    background: #f6f8fa;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 16px;
+    margin: 1.2em 0;
+    overflow-x: auto;
+    font-size: 0.97em;
+  }
+  pre code {
+    background: none;
+    color: #24292f;
+    font-family: 'Fira Mono', 'Consolas', 'Monaco', monospace;
+    font-size: inherit;
+    padding: 0;
+    border-radius: 0;
+    line-height: 1.5;
+  }
+  code {
+    background: #f6f8fa;
+    color: #24292f;
+    border-radius: 6px;
+    padding: 0.2em 0.4em;
+    font-family: 'Fira Mono', 'Consolas', 'Monaco', monospace !important;
+    font-size: 0.97em;
+  }
+  

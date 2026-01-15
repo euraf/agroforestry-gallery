@@ -1,3 +1,20 @@
+// --- Zenodo hits cache helpers ---
+const ZENODO_CACHE_KEY = 'zenodo_hits_cache_v1';
+function loadZenodoCache() {
+  try {
+    const raw = localStorage.getItem(ZENODO_CACHE_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw);
+  } catch (e) {
+    return {};
+  }
+}
+function saveZenodoCache(cache) {
+  try {
+    localStorage.setItem(ZENODO_CACHE_KEY, JSON.stringify(cache));
+  } catch (e) {}
+}
+
 // Debug mode - set to true to prevent API calls to Zenodo
 const DEBUG_MODE = false;
 
@@ -53,7 +70,7 @@ const footermessage = document.getElementById("footermessage");
 // keep footer content hidden / discrete (we don't print status messages there)
 if (footermessage) footermessage.style.display = "none";
 
-// Isotope / grid state
+// Grid state (no Isotope)
 let isotopeGrid = null;
 let isotopeInitialized = false;
 
@@ -63,25 +80,42 @@ let categories = {};
 // Loading helpers
 function showLoadingBar() {
   if (!barContainer) return;
-  barContainer.style.display = "block";
+  barContainer.classList.add("show");
   if (bar) {
+    bar.classList.remove("progress-complete");
     bar.style.width = "0%";
-    bar.style.background = "#28a745"; // green bar
   }
   if (barText) barText.textContent = "Fetching photos from Zenodo";
 }
 function hideLoadingBar() {
   if (!barContainer) return;
   setTimeout(() => {
-    barContainer.style.display = "none";
+    barContainer.classList.remove("show");
     // Show all map buttons when loading bar hides (if needed)
-    document.querySelectorAll('.btn-map').forEach(b => b.style.display = 'inline-block');
+    document.querySelectorAll('.btn-map').forEach(b => b.classList.remove('hidden'));
   }, 400);
 }
 
 // Start incremental fetch & rendering on DOMContentLoaded
 document.addEventListener("DOMContentLoaded", async () => {
   showLoadingBar();
+  // Ensure map button is visible on load
+  document.querySelectorAll('.btn-map').forEach(b => b.style.display = 'inline-block');
+
+  // Auto-switch to map view if URL ends with /map
+  const url = new URL(window.location);
+  let shouldShowMap = url.pathname.endsWith('/map');
+  // If /map, show map view and create map immediately
+  if (shouldShowMap) {
+    document.getElementById('gallery').style.display = 'none';
+    document.getElementById('gallery-map').style.display = 'block';
+    document.querySelectorAll('.btn-map').forEach(b => b.style.display = 'none');
+    document.querySelectorAll('.btn-gallery').forEach(b => b.style.display = 'inline-block');
+    initGalleryMap();
+  } else {
+    document.getElementById('gallery').style.display = 'block';
+    document.getElementById('gallery-map').style.display = 'none';
+  }
   let dotsInterval;
   if (barText) {
     let dots = 0;
@@ -127,6 +161,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
     buildWordCloud(); // full rebuild at the end to ensure counts are consistent
     await setupPagination();
+
+    // After all setup, apply filter from URL if present
+    let urlFilter = getFilterFromUrl();
+    if (urlFilter) {
+      // Sanitize the filter value to match internal keyword format
+      urlFilter = sanitizeKeyword(urlFilter);
+      currentActiveFilter = urlFilter;
+      buildWordCloud(); // ensure word cloud buttons exist and highlight
+      applyFilterValue(`.${urlFilter}`);
+    }
+
+    // Ensure pins are generated if map is visible (for direct /map entry)
+    const mapEl = document.getElementById('gallery-map');
+    if (mapEl && mapEl.style.display === 'block' && window.galleryMap) {
+      generateMapMarkers(filteredPhotos.length ? filteredPhotos : photos);
+    }
   } catch (err) {
     console.error("Error fetching Zenodo photos:", err);
     // footer messages removed per request
@@ -143,13 +193,52 @@ async function fetchZenodoPhotosIncremental(communities) {
     console.log("DEBUG MODE: Skipping fetchZenodoPhotosIncremental");
     return [];
   }
-  
-  let allPhotosCount = 0;
-  for (const community of communities) {
-    let apiUrl = `https://zenodo.org/api/records?size=25&sort=mostrecent&communities=${community}&type=image`;
 
-    while (apiUrl) {
-      // footer messages removed — keep debug logs instead
+  let zenodoCache = loadZenodoCache();
+  let stopFetching = false;
+  let allPhotosCount = 0;
+  // Start with all cached records (in order of most recent first)
+  let cachedIds = Object.keys(zenodoCache);
+  let cachedPhotos = cachedIds.map(id => zenodoCache[id]);
+  // Sort cachedPhotos by publication date descending (most recent first)
+  cachedPhotos.sort((a, b) => {
+    let ad = new Date(a.metadata?.publication_date || 0);
+    let bd = new Date(b.metadata?.publication_date || 0);
+    return bd - ad;
+  });
+  photos = [];
+  cachedPhotos.forEach(photo => {
+    if (!renderedRecordIds.has(photo.id)) {
+      photos.push(photo);
+      renderedRecordIds.add(photo.id);
+    }
+  });
+
+  for (const community of communities) {
+    // First, fetch the first hit (size=1) to check if it's in cache
+    let firstUrl = `https://zenodo.org/api/records?size=1&sort=mostrecent&communities=${community}&type=image`;
+    let firstResponse;
+    try {
+      firstResponse = await fetch(firstUrl);
+    } catch (err) {
+      console.error("Network error while fetching first record:", firstUrl, err);
+      continue;
+    }
+    if (!firstResponse.ok) {
+      console.error(`Failed to fetch ${firstUrl}: ${firstResponse.status}`);
+      continue;
+    }
+    const firstData = await firstResponse.json();
+    const firstHit = firstData.hits?.hits?.[0];
+    if (firstHit && zenodoCache[firstHit.id]) {
+      // All records are already cached, skip further fetching
+      console.debug("First hit already in cache, using cached records only.");
+      break;
+    }
+
+    // Otherwise, fetch in batches of 10
+    let apiUrl = `https://zenodo.org/api/records?size=10&sort=mostrecent&communities=${community}&type=image`;
+    while (apiUrl && !stopFetching) {
       console.debug(`Fetching ${apiUrl}`);
       let response;
       try {
@@ -166,24 +255,27 @@ async function fetchZenodoPhotosIncremental(communities) {
       const data = await response.json();
       const hits = data.hits?.hits || [];
 
-      if (hits.length) {
-        // filter out any hits we've already rendered (prevent duplicates)
-        const newHits = hits.filter((h) => !renderedRecordIds.has(h.id));
-        if (newHits.length) {
-          newHits.forEach((h) => renderedRecordIds.add(h.id));
-          photos = photos.concat(newHits);
-          appendPhotosToGallery(newHits);
+      for (const h of hits) {
+        if (renderedRecordIds.has(h.id)) {
+          // Already loaded, stop fetching further
+          stopFetching = true;
+          break;
         }
-        allPhotosCount += hits.length;
-        console.debug(`Fetched ${allPhotosCount} photos so far`);
+        photos.push(h);
+        renderedRecordIds.add(h.id);
+        zenodoCache[h.id] = h;
+        allPhotosCount++;
       }
-
+      saveZenodoCache(zenodoCache);
+      if (stopFetching) break;
       // follow pagination (Zenodo returns full URL in data.links.next)
       apiUrl = data.links && data.links.next ? data.links.next : null;
     }
   }
 
-  console.debug(`Fetched ${photos.length} photos from Zenodo`);
+  // After fetch, append new photos to gallery (if any)
+  appendPhotosToGallery(photos);
+  console.debug(`Fetched ${photos.length} photos from Zenodo (cache + new)`);
   return photos;
 }
 
@@ -227,16 +319,12 @@ function showTopProgressBar() {
   const container = document.createElement("div");
   container.id = "top-progress-container";
   // center the whole container and constrain width so it appears centered on the page
-  container.style.display = "block";
-  container.style.textAlign = "center";
-  container.style.margin = "12px auto";
-  container.style.maxWidth = "700px";
-
+  container.className = "top-progress-container";
   container.innerHTML = `
-    <div style="display:inline-block; text-align:left; width:100%; max-width:560px;">
-      <div id="top-progress-label" style="font-size:13px;color:#333;margin-bottom:6px;">Loading 0 photos</div>
-      <div id="top-progress" style="width:100%;height:12px;background:#eee;border-radius:6px;overflow:hidden">
-        <div id="top-progress-bar" style="width:0%;height:100%;background:#28a745;transition:width 300ms ease"></div>
+    <div class="top-progress-inner">
+      <div id="top-progress-label" class="top-progress-label">Loading 0 photos</div>
+      <div id="top-progress" class="top-progress">
+        <div id="top-progress-bar" class="top-progress-bar"></div>
       </div>
     </div>
   `;
@@ -275,29 +363,27 @@ function updateTopProgress() {
     const pct = Math.min(100, Math.round((loaded / totalRecords) * 100));
     topProgressBar.style.width = `${pct}%`;
     topProgressLabel.textContent = `Loading ${loaded} photos out of ${totalRecords} (${pct}%)`;
-
-    // when complete, show "Loaded" briefly then hide the centered UI
     if (pct >= 100) {
       topProgressLabel.textContent = `Loaded ${loaded} photos out of ${totalRecords} (${pct}%)`;
       if (topHideTimeout) clearTimeout(topHideTimeout);
       topHideTimeout = setTimeout(() => {
-        const c = document.getElementById("top-progress-container");
-        if (c) c.style.display = "none";
+        const containerEl = document.getElementById("top-progress-container");
+        if (containerEl) containerEl.classList.add("hidden");
         topHideTimeout = null;
       }, 2500);
     } else {
-      container.style.display = "block";
+      container.classList.remove("hidden");
     }
   } else {
     // indeterminate mode: show count and a pulsing / growing width
     const pseudoPct = Math.min(95, Math.round((loaded % 20) * 5));
     topProgressBar.style.width = `${pseudoPct}%`;
     topProgressLabel.textContent = `Loading ${loaded} photos`;
-    container.style.display = "block";
+    container.classList.remove("hidden");
   }
 }
 
-// Append an array of photos to the gallery DOM and wire up lazy loading + isotope
+// Append an array of photos to the gallery DOM and wire up lazy loading
 function appendPhotosToGallery(newPhotos) {
   if (!gallery) return;
   // Ensure grid-sizer exists
@@ -332,7 +418,7 @@ function appendPhotosToGallery(newPhotos) {
         const lonDD = photo.metadata.custom["dwc:decimalLongitude"]?.[0];
         if (latDD && lonDD) {
           const photoLink2Gmap = BuildLink2Gmap(lonDD, latDD);
-          htmlCoords = `<a href="${photoLink2Gmap}" target="_blank" class="icon-overlay">&#127757;</a>`;
+          htmlCoords = `<a href="${photoLink2Gmap}" target="_blank" class="icon-overlay globe-top-right">&#127757;</a>`;
         }
       }
 
@@ -352,9 +438,7 @@ function appendPhotosToGallery(newPhotos) {
         : "";
 
       const div = document.createElement("div");
-      div.className = `grid-item ${category_classes}`;
-      div.style.opacity = "0";
-      div.style.transition = "opacity 0.5s";
+      div.className = `grid-item ${category_classes} grid-item-hidden`;
       div.innerHTML = `
         <a href="${large_image_url}" class="popup-btn" data-title="${title}" data-authors="${(
           photo.metadata?.creators || []
@@ -364,8 +448,10 @@ function appendPhotosToGallery(newPhotos) {
           ? new Date(photo.metadata.publication_date).getFullYear()
           : ""
         }" data-doi="${doi_url}">
-          <img class="img-fluid lazy" src="${thumbnail_url}" data-src="${thumbnail_url}" alt="${title}" loading="lazy">
-          ${htmlCoords}
+          <div class="photo-img-wrapper" style="position:relative;">
+            <img class="img-fluid lazy" src="${thumbnail_url}" data-src="${thumbnail_url}" alt="${title}" loading="lazy">
+            ${htmlCoords}
+          </div>
         </a>
       `;
       fragment.appendChild(div);
@@ -375,29 +461,6 @@ function appendPhotosToGallery(newPhotos) {
   }
 
   gallery.appendChild(fragment);
-
-  // Initialize Isotope once, then relayout
-  if (!isotopeInitialized) {
-    try {
-      initIsotope();
-    } catch (e) {
-      console.warn("initIsotope failed", e);
-    }
-    isotopeInitialized = true;
-  } else {
-    // If isotope exists, appended elements need layout
-    setTimeout(() => {
-      try {
-        $(".grid").isotope(
-          "appended",
-          $(gallery).find(".grid-item").slice(-newPhotos.length)
-        );
-        $(".grid").isotope("layout");
-      } catch (e) {
-        console.warn("Isotope append/layout failed", e);
-      }
-    }, 50);
-  }
 
   // Wire up image load handlers for new images
   progressivelyShowImages();
@@ -409,19 +472,7 @@ function appendPhotosToGallery(newPhotos) {
   updateTopProgress();
 }
 
-// Initialize isotope grid
-function initIsotope() {
-  if ($(".grid").data("isotope")) {
-    $(".grid").isotope("destroy");
-  }
-  isotopeGrid = $(".grid").isotope({
-    itemSelector: ".grid-item",
-    percentPosition: true,
-    masonry: {
-      columnWidth: ".grid-sizer",
-    },
-  });
-}
+// Removed Isotope grid initialization
 
 // Show images progressively and update loading bar
 function progressivelyShowImages() {
@@ -443,7 +494,7 @@ function progressivelyShowImages() {
       if (resolved) return;
       resolved = true;
       loaded++;
-      if (gridItem) gridItem.style.opacity = "1";
+      if (gridItem) gridItem.classList.remove("grid-item-hidden");
       if (bar) bar.style.width = `${Math.min(100, (loaded / total) * 100)}%`;
       if (barText) barText.textContent = `Loading photos... ${loaded}/${total}`;
       if (isotopeGrid) isotopeGrid.isotope("layout");
@@ -504,22 +555,31 @@ function buildWordCloud() {
     wordCloud.innerHTML += `<button class="word-filter ${additionalClass}" data-filter=".${sanitizedKeyword}">${originalKeyword} <sup>${categories[sanitizedKeyword].count}</sup></button>`;
   }
 
-  // re-bind word filter events
-  $(document).off("click", ".word-filter");
-  $(document).on("click", ".word-filter", function () {
-    const filterValue = $(this).attr("data-filter");
-    $(".word-filter").removeClass("active");
-    $(this).addClass("active");
-
-    // apply client-side filter and show active chip
-    applyFilterValue(filterValue);
-    setActiveFilterChip(filterValue);
-
-    if (window.innerWidth <= 768) {
-      const wordcloudDrawer = document.getElementById("wordcloudDrawer");
-      if (wordcloudDrawer) wordcloudDrawer.classList.remove("visible");
-    }
+  // re-bind word filter events (no jQuery)
+  wordCloud.querySelectorAll('.word-filter').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const filterValue = this.getAttribute('data-filter');
+      wordCloud.querySelectorAll('.word-filter').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      // apply client-side filter and show active chip
+      applyFilterValue(filterValue);
+      setActiveFilterChip(filterValue);
+      if (window.innerWidth <= 768) {
+        const wordcloudDrawer = document.getElementById("wordcloudDrawer");
+        if (wordcloudDrawer) wordcloudDrawer.classList.remove("visible");
+      }
+    });
   });
+
+  // Highlight the correct button if a filter is active
+  if (typeof currentActiveFilter === 'string' && currentActiveFilter.length > 0) {
+    const btn = wordCloud.querySelector(`.word-filter[data-filter=".${currentActiveFilter}"]`);
+    if (btn) btn.classList.add('active');
+  } else {
+    // Highlight 'All' if no filter is active
+    const allBtn = wordCloud.querySelector('.word-filter[data-filter="*"]');
+    if (allBtn) allBtn.classList.add('active');
+  }
 }
 
 // Pagination creation (based on total photos when finished)
@@ -578,6 +638,59 @@ function buildGalleryPaginated(page) {
   const paginated = sortedPhotos.slice(startIdx, endIdx);
   appendPhotosToGallery(paginated);
 }
+
+// --- URL filter sync helpers ---
+function setFilterInUrl(filterValue) {
+  const url = new URL(window.location);
+  if (!filterValue || filterValue === '*' || filterValue === 'all') {
+    url.searchParams.delete('filter');
+  } else {
+    url.searchParams.set('filter', filterValue.replace(/^\./, ''));
+  }
+  window.history.replaceState({}, '', url);
+}
+
+function getFilterFromUrl() {
+  const url = new URL(window.location);
+  return url.searchParams.get('filter');
+}
+
+// Helper: apply a filter value from the button's data-filter (supports ".kw-xxx", ".xxx" or "*")
+function applyFilterValue(filterValue, skipUrlUpdate) {
+  if (!filterValue || filterValue === "*" || filterValue === "all") {
+    filteredPhotos = photos.slice();
+    currentActiveFilter = null;
+  } else {
+    const raw = String(filterValue).replace(/^\./, ""); // remove leading dot if present
+    // support optional "kw-" prefix
+    const sanitizedKey = raw.startsWith("kw-") ? raw.slice(3) : raw;
+    filteredPhotos = photos.filter((p) => {
+      const kws = (p.metadata?.keywords || []).map((k) => sanitizeKeyword(k));
+      return kws.includes(sanitizedKey);
+    });
+    currentActiveFilter = sanitizedKey;
+  }
+  // render view and update UI
+  renderFilteredGallery();
+  updateTopProgress();
+  // Update URL parameter unless told not to
+  if (!skipUrlUpdate) {
+    setFilterInUrl(filterValue);
+  }
+}
+
+// Patch DOMContentLoaded to apply filter from URL after setup
+const origDOMContentLoaded = document.addEventListener;
+document.addEventListener = function(type, listener, options) {
+  if (type === "DOMContentLoaded") {
+    origDOMContentLoaded.call(document, type, async function(event) {
+      await listener(event);
+      // (filter from URL now handled after async setup in DOMContentLoaded above)
+    }, options);
+  } else {
+    origDOMContentLoaded.call(document, type, listener, options);
+  }
+};
 
 // --- remaining helper functions copied from existing file (sanitize, BuildLink2Gmap, Magnific popup, map handlers, animateCounter, etc.) ---
 function sanitizeKeyword(keyword) {
@@ -655,6 +768,13 @@ document.querySelectorAll('.btn-map').forEach(btn => {
     // Hide all map buttons, show all gallery buttons
     document.querySelectorAll('.btn-map').forEach(b => b.style.display = 'none');
     document.querySelectorAll('.btn-gallery').forEach(b => b.style.display = 'inline-block');
+    // Update URL to /map (SPA style)
+    const url = new URL(window.location);
+    if (!url.pathname.endsWith('/map')) {
+      let base = url.pathname.replace(/\/map$/, '').replace(/\/gallery$/, '').replace(/\/+$/, '');
+      url.pathname = base + '/map';
+      window.history.replaceState({}, '', url);
+    }
     // initialize map and generate markers for the current filtered set
     initGalleryMap();
     generateMapMarkers(filteredPhotos.length ? filteredPhotos : photos);
@@ -667,6 +787,11 @@ document.querySelectorAll('.btn-gallery').forEach(btn => {
     // Hide all gallery buttons, show all map buttons
     document.querySelectorAll('.btn-gallery').forEach(b => b.style.display = 'none');
     document.querySelectorAll('.btn-map').forEach(b => b.style.display = 'inline-block');
+    // Update URL to base '/' (SPA style)
+    const url = new URL(window.location);
+    let base = url.pathname.replace(/\/map$/, '').replace(/\/gallery$/, '').replace(/\/+$/, '');
+    url.pathname = base === '' ? '/' : base + '/';
+    window.history.replaceState({}, '', url);
     // re-render gallery from current filteredPhotos so the view is up-to-date
     try {
       renderFilteredGallery();
@@ -916,7 +1041,20 @@ async function loadhtmlContent(htmlpage, ObjID2inject) {
 document.querySelectorAll('.btn-filter').forEach(btn => {
   btn.addEventListener('click', () => {
     const d = document.getElementById('wordcloudDrawer');
-    if (d) d.classList.toggle('visible');
+    if (d) {
+      // If word cloud is not present or empty, build it
+      const wordCloud = document.getElementById('word-cloud');
+      if (wordCloud && (!wordCloud.children.length || wordCloud.innerHTML.trim() === '')) {
+        buildWordCloud();
+      }
+      // Always highlight the active filter in the word cloud
+      if (currentActiveFilter) {
+        setActiveFilterChip(`.${currentActiveFilter}`);
+      } else {
+        setActiveFilterChip('*');
+      }
+      d.classList.toggle('visible');
+    }
   });
 });
 document.getElementById("close-filter")?.addEventListener("click", () => {
@@ -927,11 +1065,16 @@ document.getElementById("close-filter")?.addEventListener("click", () => {
 // --- ADD: wire open/close for the Add Photo drawer and lazy-load its content ---
 document.querySelectorAll('.btn-add-photos').forEach(btn => {
   btn.addEventListener('click', async () => {
-    const d = document.getElementById('addPhotosDrawer');
-    if (!d) return;
+    const addDrawer = document.getElementById('addPhotosDrawer');
+    const embedDrawer = document.getElementById('embedDrawer');
+    if (!addDrawer) return;
+    // Close embed drawer if open
+    if (embedDrawer && embedDrawer.classList.contains('visible')) {
+      embedDrawer.classList.remove('visible');
+    }
     // Load Markdown instructions if not already loaded
     await loadZenodoInstructions();
-    d.classList.toggle('visible');
+    addDrawer.classList.toggle('visible');
   });
 });
 document.getElementById("close-add-photos")?.addEventListener("click", () => {
@@ -942,11 +1085,16 @@ document.getElementById("close-add-photos")?.addEventListener("click", () => {
 // --- ADD: wire open/close for the Embed drawer and lazy-load its content ---
 document.querySelectorAll('.btn-embed').forEach(btn => {
   btn.addEventListener('click', async () => {
-    const d = document.getElementById('embedDrawer');
-    if (!d) return;
+    const embedDrawer = document.getElementById('embedDrawer');
+    const addDrawer = document.getElementById('addPhotosDrawer');
+    if (!embedDrawer) return;
+    // Close add photo drawer if open
+    if (addDrawer && addDrawer.classList.contains('visible')) {
+      addDrawer.classList.remove('visible');
+    }
     // Load Markdown instructions if not already loaded
     await loadEmbeddingInstructions();
-    d.classList.toggle('visible');
+    embedDrawer.classList.toggle('visible');
   });
 });
 document.getElementById("close-embed")?.addEventListener("click", () => {
@@ -957,41 +1105,39 @@ document.getElementById("close-embed")?.addEventListener("click", () => {
 // Helper: render the gallery from filteredPhotos (clears previous content and reuses appendPhotosToGallery)
 function renderFilteredGallery() {
   if (!gallery) return;
-  // destroy isotope so appendPhotosToGallery starts clean
-  try {
-    if ($(".grid").data("isotope")) {
-      $(".grid").isotope("destroy");
+  // Animate fade-out for non-matching items
+  const allItems = Array.from(gallery.querySelectorAll('.grid-item'));
+  const keepIds = new Set(filteredPhotos.map(p => String(p.id)));
+  let fadeOutCount = 0;
+  allItems.forEach(item => {
+    const photoId = item.dataset.photoId;
+    if (!keepIds.has(photoId)) {
+      item.classList.add('fading-out');
+      fadeOutCount++;
     }
-  } catch (e) {
-    console.debug("renderFilteredGallery: isotope destroy failed", e);
-  }
-  isotopeInitialized = false;
-  // clear gallery
-  gallery.innerHTML = '<div class="grid-sizer"></div>';
-  // append filtered photos (appendPhotosToGallery will init isotope)
-  appendPhotosToGallery(filteredPhotos);
-  // update map markers to reflect current filtered view
-  if (window.galleryMap) {
-    generateMapMarkers(filteredPhotos);
-  }
-}
-
-// Helper: apply a filter value from the button's data-filter (supports ".kw-xxx", ".xxx" or "*")
-function applyFilterValue(filterValue) {
-  if (!filterValue || filterValue === "*" || filterValue === "all") {
-    filteredPhotos = photos.slice();
-  } else {
-    const raw = String(filterValue).replace(/^\./, ""); // remove leading dot if present
-    // support optional "kw-" prefix
-    const sanitizedKey = raw.startsWith("kw-") ? raw.slice(3) : raw;
-    filteredPhotos = photos.filter((p) => {
-      const kws = (p.metadata?.keywords || []).map((k) => sanitizeKeyword(k));
-      return kws.includes(sanitizedKey);
+  });
+  // After fade-out, remove non-matching items and add new ones
+  setTimeout(() => {
+    // Remove all items not in filteredPhotos
+    allItems.forEach(item => {
+      const photoId = item.dataset.photoId;
+      if (!keepIds.has(photoId)) {
+        item.remove();
+      }
     });
-  }
-  // render view and update UI
-  renderFilteredGallery();
-  updateTopProgress();
+    // Add missing filteredPhotos
+    const existingIds = new Set(Array.from(gallery.querySelectorAll('.grid-item')).map(i => i.dataset.photoId));
+    const toAdd = filteredPhotos.filter(p => !existingIds.has(String(p.id)));
+    if (toAdd.length > 0) {
+      appendPhotosToGallery(toAdd);
+    }
+    // Remove fade-out from all visible items (for re-filtering)
+    Array.from(gallery.querySelectorAll('.grid-item')).forEach(item => item.classList.remove('fading-out'));
+    // update map markers to reflect current filtered view
+    if (window.galleryMap) {
+      generateMapMarkers(filteredPhotos.length ? filteredPhotos : photos);
+    }
+  }, fadeOutCount ? 450 : 0);
 }
 
 // Show a single active filter chip to the left of the visualizations counter
@@ -1005,6 +1151,11 @@ function setActiveFilterChip(filterValue) {
     // clear any chip
     container.innerHTML = "";
     currentActiveFilter = null;
+    // Unselect all filter buttons
+    document.querySelectorAll('.word-filter').forEach(b => b.classList.remove('active'));
+    // Select the 'All' button if present
+    const allBtn = document.querySelector('.word-filter[data-filter="*"]');
+    if (allBtn) allBtn.classList.add('active');
     return;
   }
 
@@ -1030,6 +1181,16 @@ function setActiveFilterChip(filterValue) {
       clearActiveFilter();
     });
   }
+
+  // Visually select the correct filter button
+  document.querySelectorAll('.word-filter').forEach(b => {
+    const btnKey = b.getAttribute('data-filter');
+    if (btnKey && btnKey.replace(/^\./, '') === displayKey) {
+      b.classList.add('active');
+    } else {
+      b.classList.remove('active');
+    }
+  });
 }
 
 function clearActiveFilter() {

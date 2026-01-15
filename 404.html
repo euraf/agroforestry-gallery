@@ -1,0 +1,27 @@
+<!-- 404.html for GitHub Pages SPA routing -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Redirecting...</title>
+  <meta http-equiv="refresh" content="0; url=/index.html">
+  <script>
+    // Client-side redirect for SPA deep-linking
+    var redirectTo = '/index.html';
+    if (window.location.pathname && window.location.pathname !== '/404.html') {
+      redirectTo += '?redirect=' + encodeURIComponent(window.location.pathname + window.location.search + window.location.hash);
+    }
+    window.location.replace(redirectTo);
+  </script>
+  <style>
+    body { font-family: sans-serif; text-align: center; margin-top: 10vh; }
+  </style>
+</head>
+<body>
+  <h2>Redirecting...</h2>
+  <p>If you are not redirected automatically, <a id="redir-link" href="/index.html">click here</a>.</p>
+  <script>
+    document.getElementById('redir-link').href = redirectTo;
+  </script>
+</body>
+</html>
