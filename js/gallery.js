@@ -264,6 +264,20 @@ async function fetchZenodoPhotosIncremental(communities) {
         expired = true;
         // Show the same warning as for expired cache
         showTemporaryWarning("Checking for new photo updates. This may take a moment while we refresh the gallery. Thank you for your patience.", 5000);
+      } else if (cachedPhotos.length === totalCount) {
+        // Cache is complete and not expired, just load cached photos and render them
+        photos = [];
+        cachedPhotos.forEach(photo => {
+          if (!renderedRecordIds.has(photo.id)) {
+            photos.push(photo);
+            renderedRecordIds.add(photo.id);
+          }
+        });
+        // Render photos in the gallery
+        if (typeof appendPhotosToGallery === 'function') appendPhotosToGallery(photos);
+        if (typeof updateTopProgress === 'function') updateTopProgress();
+        console.debug(`Loaded ${photos.length} photos from cache (no fetch needed)`);
+        return photos;
       }
     } catch (e) {
       // If count check fails, fallback to normal cache logic
