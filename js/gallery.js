@@ -86,6 +86,10 @@ const renderedRecordIds = new Set(); // optional guard to avoid duplicates
 // Map globals (prevent ReferenceError when opening map / generating markers)
 let mapMarkersLayer = null;
 let europeBounds = null;
+// Store last map state (zoom/center) when leaving map
+let lastMapState = null;
+// Store map event handler reference for removal
+let mapMoveHandler = null;
 
 // DOM elements (cached)
 
@@ -953,58 +957,78 @@ document.querySelectorAll('.btn-map').forEach(btn => {
     document.querySelectorAll('.btn-gallery').forEach(b => b.style.display = 'inline-block');
     // Hide sorting controls when switching to map view
     document.body.classList.add('gallery-map-visible');
-    // Update URL to /map (SPA style) and add zoom/center
+    // Update URL to /map (SPA style) and add zoom/center from lastMapState if available
     const url = new URL(window.location);
     let base = url.pathname.replace(/\/map$/, '').replace(/\/gallery$/, '').replace(/\/+$/, '');
     url.pathname = base + '/map';
-    // If map exists, get zoom/center
-    if (window.galleryMap) {
+    let zoom, lat, lng;
+    if (lastMapState) {
+      zoom = lastMapState.zoom;
+      lat = lastMapState.lat;
+      lng = lastMapState.lng;
+    } else if (window.galleryMap) {
       const center = window.galleryMap.getCenter();
-      const zoom = window.galleryMap.getZoom();
+      zoom = window.galleryMap.getZoom();
+      lat = center.lat;
+      lng = center.lng;
+    }
+    if (zoom && lat && lng) {
       url.searchParams.set('zoom', zoom);
-      url.searchParams.set('lat', center.lat.toFixed(5));
-      url.searchParams.set('lng', center.lng.toFixed(5));
+      url.searchParams.set('lat', parseFloat(lat).toFixed(5));
+      url.searchParams.set('lng', parseFloat(lng).toFixed(5));
     }
     window.history.replaceState({}, '', url);
     // initialize map and generate markers for the current filtered set
     initGalleryMap();
+    // If restoring, set map view
+    if (lastMapState && window.galleryMap) {
+      window.galleryMap.setView([parseFloat(lastMapState.lat), parseFloat(lastMapState.lng)], parseInt(lastMapState.zoom));
+    }
     generateMapMarkers(filteredPhotos.length ? filteredPhotos : photos);
+    
     // Add event to update URL on map move/zoom
     if (window.galleryMap && !window._mapUrlSync) {
-      window.galleryMap.on('moveend zoomend', function() {
-        const c = window.galleryMap.getCenter();
-        const z = window.galleryMap.getZoom();
-        const url2 = new URL(window.location);
-        url2.searchParams.set('zoom', z);
-        url2.searchParams.set('lat', c.lat.toFixed(5));
-        url2.searchParams.set('lng', c.lng.toFixed(5));
-        window.history.replaceState({}, '', url2);
-      });
+      window.galleryMap.on('moveend zoomend', mapMoveHandler);
       window._mapUrlSync = true;
     }
   });
 });
 document.querySelectorAll('.btn-gallery').forEach(btn => {
   btn.addEventListener('click', function () {
-    document.getElementById('gallery').style.display = 'block';
-    document.getElementById('gallery-map').style.display = 'none';
-    // Hide all gallery buttons, show all map buttons
-    document.querySelectorAll('.btn-gallery').forEach(b => b.style.display = 'none');
-    document.querySelectorAll('.btn-map').forEach(b => b.style.display = 'inline-block');
-    // Show sorting controls when switching to gallery view
-    document.body.classList.remove('gallery-map-visible');
-    // Update URL to base '/' (SPA style)
-    const url = new URL(window.location);
-    let base = url.pathname.replace(/\/map$/, '').replace(/\/gallery$/, '').replace(/\/+$/, '');
-    url.pathname = base === '' ? '/' : base + '/';
-    window.history.replaceState({}, '', url);
-    // re-render gallery from current filteredPhotos so the view is up-to-date
-    try {
-      renderFilteredGallery();
-      updateTopProgress();
-    } catch (e) {
-      console.warn('Error updating gallery on toggle:', e);
-    }
+      // Remove map move/zoom event handler if present
+      if (window.galleryMap && mapMoveHandler && document.getElementById('gallery-map').style.display !== 'none') {
+        window.galleryMap.off('moveend zoomend', mapMoveHandler);
+        window._mapUrlSync = false;
+      }
+      // Update URL to base '/' (SPA style) and always remove zoom/lat/lng
+      const url = new URL(window.location);
+      let base = url.pathname.replace(/\/map$/, '').replace(/\/gallery$/, '').replace(/\/+$/, '');
+      url.pathname = base === '' ? '/' : base + '/';
+      // Save current map state if map is present
+      if (window.galleryMap && document.getElementById('gallery-map').style.display !== 'none') {
+        const c = window.galleryMap.getCenter();
+        const z = window.galleryMap.getZoom();
+        lastMapState = { zoom: z, lat: c.lat, lng: c.lng };
+      }
+      // Remove zoom/lat/lng from URL regardless of map state
+      url.searchParams.delete('zoom');
+      url.searchParams.delete('lat');
+      url.searchParams.delete('lng');
+      window.history.replaceState({}, '', url);
+      // re-render gallery from current filteredPhotos so the view is up-to-date
+      document.getElementById('gallery').style.display = 'block';
+      document.getElementById('gallery-map').style.display = 'none';
+      // Hide all gallery buttons, show all map buttons
+      document.querySelectorAll('.btn-gallery').forEach(b => b.style.display = 'none');
+      document.querySelectorAll('.btn-map').forEach(b => b.style.display = 'inline-block');
+      // Show sorting controls when switching to gallery view
+      document.body.classList.remove('gallery-map-visible');
+      try {
+        renderFilteredGallery();
+        updateTopProgress();
+      } catch (e) {
+        console.warn('Error updating gallery on toggle:', e);
+      }
   });
 });
 
@@ -1114,6 +1138,18 @@ function initGalleryMap() {
     }
     mapMarkersLayer.addTo(window.galleryMap);
   }
+
+  mapMoveHandler = function() {
+    const c = window.galleryMap.getCenter();
+    const z = window.galleryMap.getZoom();
+    const url2 = new URL(window.location);
+    url2.searchParams.set('zoom', z);
+    url2.searchParams.set('lat', c.lat.toFixed(5));
+    url2.searchParams.set('lng', c.lng.toFixed(5));
+    window.history.replaceState({}, '', url2);
+    // Save to lastMapState
+    lastMapState = { zoom: z, lat: c.lat, lng: c.lng };
+  };
 }
 
 // Generate / refresh markers from a given photo list (defaults to photos array)
@@ -1201,15 +1237,7 @@ function generateMapMarkers(list = photos) {
   }
   // Always (re)bind map move/zoom events to update URL after loading
   if (window.galleryMap && !window._mapUrlSync) {
-    window.galleryMap.on('moveend zoomend', function() {
-      const c = window.galleryMap.getCenter();
-      const z = window.galleryMap.getZoom();
-      const url2 = new URL(window.location);
-      url2.searchParams.set('zoom', z);
-      url2.searchParams.set('lat', c.lat.toFixed(5));
-      url2.searchParams.set('lng', c.lng.toFixed(5));
-      window.history.replaceState({}, '', url2);
-    });
+    window.galleryMap.on('moveend zoomend', mapMoveHandler);
     window._mapUrlSync = true;
   }
 }
@@ -1357,7 +1385,7 @@ function renderFilteredGallery() {
     // Remove fade-out from all visible items (for re-filtering)
     Array.from(gallery.querySelectorAll('.grid-item')).forEach(item => item.classList.remove('fading-out'));
     // update map markers to reflect current filtered view
-    if (window.galleryMap) {
+    if (window.galleryMap && document.getElementById('gallery-map').style.display !== 'none') {
       generateMapMarkers(filteredPhotos.length ? filteredPhotos : photos);
     }
   }, fadeOutCount ? 450 : 0);
