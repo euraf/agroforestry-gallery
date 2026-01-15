@@ -174,17 +174,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Ensure map button is visible on load
   document.querySelectorAll('.btn-map').forEach(b => b.style.display = 'inline-block');
 
-  // Auto-switch to map view if URL ends with /map
+  // Auto-switch to map view if URL ends with /map, and restore zoom/center if present
   const url = new URL(window.location);
   let shouldShowMap = url.pathname.endsWith('/map');
-  // If /map, show map view and create map immediately
+  let mapZoom = null, mapLat = null, mapLng = null;
   if (shouldShowMap) {
+    // Parse zoom/center from URL params if present
+    if (url.searchParams.has('zoom')) mapZoom = parseInt(url.searchParams.get('zoom'), 10);
+    if (url.searchParams.has('lat')) mapLat = parseFloat(url.searchParams.get('lat'));
+    if (url.searchParams.has('lng')) mapLng = parseFloat(url.searchParams.get('lng'));
     document.getElementById('gallery').style.display = 'none';
     document.getElementById('gallery-map').style.display = 'block';
     document.querySelectorAll('.btn-map').forEach(b => b.style.display = 'none');
     document.querySelectorAll('.btn-gallery').forEach(b => b.style.display = 'inline-block');
     document.body.classList.add('gallery-map-visible');
     initGalleryMap();
+    // If zoom/center present, set map view after map is ready
+    if (window.galleryMap && mapZoom && mapLat && mapLng) {
+      window.galleryMap.setView([mapLat, mapLng], mapZoom);
+    }
   } else {
     document.getElementById('gallery').style.display = 'block';
     document.getElementById('gallery-map').style.display = 'none';
@@ -916,16 +924,35 @@ document.querySelectorAll('.btn-map').forEach(btn => {
     document.querySelectorAll('.btn-gallery').forEach(b => b.style.display = 'inline-block');
     // Hide sorting controls when switching to map view
     document.body.classList.add('gallery-map-visible');
-    // Update URL to /map (SPA style)
+    // Update URL to /map (SPA style) and add zoom/center
     const url = new URL(window.location);
-    if (!url.pathname.endsWith('/map')) {
-      let base = url.pathname.replace(/\/map$/, '').replace(/\/gallery$/, '').replace(/\/+$/, '');
-      url.pathname = base + '/map';
-      window.history.replaceState({}, '', url);
+    let base = url.pathname.replace(/\/map$/, '').replace(/\/gallery$/, '').replace(/\/+$/, '');
+    url.pathname = base + '/map';
+    // If map exists, get zoom/center
+    if (window.galleryMap) {
+      const center = window.galleryMap.getCenter();
+      const zoom = window.galleryMap.getZoom();
+      url.searchParams.set('zoom', zoom);
+      url.searchParams.set('lat', center.lat.toFixed(5));
+      url.searchParams.set('lng', center.lng.toFixed(5));
     }
+    window.history.replaceState({}, '', url);
     // initialize map and generate markers for the current filtered set
     initGalleryMap();
     generateMapMarkers(filteredPhotos.length ? filteredPhotos : photos);
+    // Add event to update URL on map move/zoom
+    if (window.galleryMap && !window._mapUrlSync) {
+      window.galleryMap.on('moveend zoomend', function() {
+        const c = window.galleryMap.getCenter();
+        const z = window.galleryMap.getZoom();
+        const url2 = new URL(window.location);
+        url2.searchParams.set('zoom', z);
+        url2.searchParams.set('lat', c.lat.toFixed(5));
+        url2.searchParams.set('lng', c.lng.toFixed(5));
+        window.history.replaceState({}, '', url2);
+      });
+      window._mapUrlSync = true;
+    }
   });
 });
 document.querySelectorAll('.btn-gallery').forEach(btn => {
@@ -1128,16 +1155,33 @@ function generateMapMarkers(list = photos) {
     markers.push(marker);
   }
 
-  // Fit view to markers or to Europe bounds
-  if (markers.length) {
-    const group = L.featureGroup(markers);
-    try {
-      window.galleryMap.fitBounds(group.getBounds().pad(0.15));
-    } catch (e) {
-      // ignore fit errors
+  // Fit view to markers or to Europe bounds, unless URL has zoom/center
+  const url = new URL(window.location);
+  const hasMapParams = url.searchParams.has('zoom') && url.searchParams.has('lat') && url.searchParams.has('lng');
+  if (!hasMapParams) {
+    if (markers.length) {
+      const group = L.featureGroup(markers);
+      try {
+        window.galleryMap.fitBounds(group.getBounds().pad(0.15));
+      } catch (e) {
+        // ignore fit errors
+      }
+    } else if (europeBounds) {
+      window.galleryMap.fitBounds(europeBounds.pad(0.05));
     }
-  } else if (europeBounds) {
-    window.galleryMap.fitBounds(europeBounds.pad(0.05));
+  }
+  // Always (re)bind map move/zoom events to update URL after loading
+  if (window.galleryMap && !window._mapUrlSync) {
+    window.galleryMap.on('moveend zoomend', function() {
+      const c = window.galleryMap.getCenter();
+      const z = window.galleryMap.getZoom();
+      const url2 = new URL(window.location);
+      url2.searchParams.set('zoom', z);
+      url2.searchParams.set('lat', c.lat.toFixed(5));
+      url2.searchParams.set('lng', c.lng.toFixed(5));
+      window.history.replaceState({}, '', url2);
+    });
+    window._mapUrlSync = true;
   }
 }
 
