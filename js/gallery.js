@@ -230,11 +230,11 @@ async function fetchZenodoPhotosIncremental(communities) {
     return [];
   }
 
-  const { expired, cache: zenodoCache } = loadZenodoCache();
+  let { expired, cache: zenodoCache } = loadZenodoCache();
   let stopFetching = false;
   let allPhotosCount = 0;
 
-  // Only use cache if not expired
+  // Only use cache if not expired and cache is complete
   let cachedIds = expired ? [] : Object.keys(zenodoCache);
   let cachedPhotos = cachedIds.map(id => zenodoCache[id]);
   // Sort cachedPhotos by publication date descending (most recent first)
@@ -243,13 +243,41 @@ async function fetchZenodoPhotosIncremental(communities) {
     let bd = new Date(b.metadata?.publication_date || 0);
     return bd - ad;
   });
-  photos = [];
-  cachedPhotos.forEach(photo => {
-    if (!renderedRecordIds.has(photo.id)) {
-      photos.push(photo);
-      renderedRecordIds.add(photo.id);
+  // Check if cache is incomplete (number of cached records < total count)
+  let cacheIncomplete = false;
+  if (!expired && cachedPhotos.length > 0) {
+    // Fetch total count from Zenodo (size=1, fast)
+    try {
+      let totalCount = 0;
+      for (const community of communities) {
+        const url = `https://zenodo.org/api/records?communities=${encodeURIComponent(community)}&type=image&size=1`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.hits && typeof data.hits.total === "number") {
+            totalCount += data.hits.total;
+          }
+        }
+      }
+      if (cachedPhotos.length < totalCount) {
+        cacheIncomplete = true;
+        expired = true;
+        // Show the same warning as for expired cache
+        showTemporaryWarning("Checking for new photo updates. This may take a moment while we refresh the gallery. Thank you for your patience.", 5000);
+      }
+    } catch (e) {
+      // If count check fails, fallback to normal cache logic
     }
-  });
+  }
+  photos = [];
+  if (!expired) {
+    cachedPhotos.forEach(photo => {
+      if (!renderedRecordIds.has(photo.id)) {
+        photos.push(photo);
+        renderedRecordIds.add(photo.id);
+      }
+    });
+  }
 
   for (const community of communities) {
     // If cache is expired, always fetch; otherwise, check first hit against cache
@@ -277,8 +305,8 @@ async function fetchZenodoPhotosIncremental(communities) {
     }
     if (skipFurtherFetching) break;
 
-    // Otherwise, fetch in batches of 10
-    let apiUrl = `https://zenodo.org/api/records?size=10&sort=mostrecent&communities=${community}&type=image`;
+    // Otherwise, fetch in batches of 25
+    let apiUrl = `https://zenodo.org/api/records?size=25&sort=mostrecent&communities=${community}&type=image`;
     while (apiUrl && !stopFetching) {
       console.debug(`Fetching ${apiUrl}`);
       let response;
@@ -296,6 +324,7 @@ async function fetchZenodoPhotosIncremental(communities) {
       const data = await response.json();
       const hits = data.hits?.hits || [];
 
+      const newBatch = [];
       for (const h of hits) {
         if (renderedRecordIds.has(h.id)) {
           // Already loaded, stop fetching further
@@ -306,16 +335,22 @@ async function fetchZenodoPhotosIncremental(communities) {
         renderedRecordIds.add(h.id);
         zenodoCache[h.id] = h;
         allPhotosCount++;
+        newBatch.push(h);
       }
       saveZenodoCache(zenodoCache);
+      // Append new photos to gallery as they arrive
+      if (newBatch.length > 0 && typeof appendPhotosToGallery === 'function') {
+        appendPhotosToGallery(newBatch);
+      }
+      // Update loading bar after each batch
+      if (typeof updateTopProgress === 'function') updateTopProgress();
       if (stopFetching) break;
       // follow pagination (Zenodo returns full URL in data.links.next)
       apiUrl = data.links && data.links.next ? data.links.next : null;
     }
   }
 
-  // After fetch, append new photos to gallery (if any)
-  appendPhotosToGallery(photos);
+  // After fetch, all photos have already been appended progressively
   console.debug(`Fetched ${photos.length} photos from Zenodo (cache + new)`);
   return photos;
 }
