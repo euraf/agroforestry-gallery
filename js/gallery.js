@@ -88,6 +88,50 @@ let mapMarkersLayer = null;
 let europeBounds = null;
 
 // DOM elements (cached)
+// Sorting state
+let currentSort = { field: "date", direction: "desc" };
+
+// Add sorting controls UI
+function createSortControls() {
+  let controls = document.getElementById("gallery-sort-controls");
+  if (controls) return; // already exists
+  controls = document.createElement("div");
+  controls.id = "gallery-sort-controls";
+  controls.className = "gallery-sort-controls mb-2";
+  controls.innerHTML = `
+    <label for="sort-field" class="mb-0">Sort by:</label>
+    <select id="sort-field" class="form-select form-select-sm me-2 gallery-sort-dropdown" style="width:auto;display:inline-block;">
+      <option value="date">Date</option>
+      <option value="title">Title</option>
+    </select>
+    <select id="sort-direction" class="form-select form-select-sm gallery-sort-dropdown" style="width:auto;display:inline-block;">
+      <option value="desc">Descending</option>
+      <option value="asc">Ascending</option>
+    </select>
+  `;
+  // Insert inside #wrapper > .container if possible
+  const wrapper = document.getElementById("wrapper");
+  let container = wrapper ? wrapper.querySelector('.container') : null;
+  if (container) {
+    container.insertBefore(controls, container.firstChild);
+  } else if (wrapper) {
+    wrapper.insertBefore(controls, wrapper.firstChild);
+  } else if (gallery && gallery.parentNode) {
+    gallery.parentNode.insertBefore(controls, gallery);
+  } else {
+    document.body.insertBefore(controls, document.body.firstChild);
+  }
+  // Bind events
+  controls.querySelector("#sort-field").addEventListener("change", function() {
+    currentSort.field = this.value;
+    buildGalleryPaginated(currentPage);
+  });
+  controls.querySelector("#sort-direction").addEventListener("change", function() {
+    currentSort.direction = this.value;
+    buildGalleryPaginated(currentPage);
+  });
+}
+
 const gallery = document.getElementById("gallery");
 const barContainer = document.getElementById("gallery-loading-bar-container");
 const bar = document.getElementById("gallery-loading-bar");
@@ -125,7 +169,8 @@ function hideLoadingBar() {
 
 // Start incremental fetch & rendering on DOMContentLoaded
 document.addEventListener("DOMContentLoaded", async () => {
-  showLoadingBar();
+  createSortControls();
+  showTopProgressBar();
   // Ensure map button is visible on load
   document.querySelectorAll('.btn-map').forEach(b => b.style.display = 'inline-block');
 
@@ -138,10 +183,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById('gallery-map').style.display = 'block';
     document.querySelectorAll('.btn-map').forEach(b => b.style.display = 'none');
     document.querySelectorAll('.btn-gallery').forEach(b => b.style.display = 'inline-block');
+    document.body.classList.add('gallery-map-visible');
     initGalleryMap();
   } else {
     document.getElementById('gallery').style.display = 'block';
     document.getElementById('gallery-map').style.display = 'none';
+    document.body.classList.remove('gallery-map-visible');
   }
   let dotsInterval;
   if (barText) {
@@ -716,13 +763,22 @@ async function setupPagination() {
 function buildGalleryPaginated(page) {
   if (!gallery) return;
   gallery.innerHTML = '<div class="grid-sizer"></div>';
-  const sortedPhotos = photos
-    .slice()
-    .sort(
-      (a, b) =>
-        new Date(b.metadata.publication_date) -
-        new Date(a.metadata.publication_date)
-    );
+  let sortedPhotos = photos.slice();
+  if (currentSort.field === "date") {
+    sortedPhotos.sort((a, b) => {
+      let ad = new Date(a.metadata?.publication_date || 0);
+      let bd = new Date(b.metadata?.publication_date || 0);
+      return currentSort.direction === "asc" ? ad - bd : bd - ad;
+    });
+  } else if (currentSort.field === "title") {
+    sortedPhotos.sort((a, b) => {
+      let at = (a.metadata?.title || "").toLowerCase();
+      let bt = (b.metadata?.title || "").toLowerCase();
+      if (at < bt) return currentSort.direction === "asc" ? -1 : 1;
+      if (at > bt) return currentSort.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  }
   const startIdx = (page - 1) * photosPerPage;
   const endIdx = startIdx + photosPerPage;
   const paginated = sortedPhotos.slice(startIdx, endIdx);
@@ -858,6 +914,8 @@ document.querySelectorAll('.btn-map').forEach(btn => {
     // Hide all map buttons, show all gallery buttons
     document.querySelectorAll('.btn-map').forEach(b => b.style.display = 'none');
     document.querySelectorAll('.btn-gallery').forEach(b => b.style.display = 'inline-block');
+    // Hide sorting controls when switching to map view
+    document.body.classList.add('gallery-map-visible');
     // Update URL to /map (SPA style)
     const url = new URL(window.location);
     if (!url.pathname.endsWith('/map')) {
@@ -877,6 +935,8 @@ document.querySelectorAll('.btn-gallery').forEach(btn => {
     // Hide all gallery buttons, show all map buttons
     document.querySelectorAll('.btn-gallery').forEach(b => b.style.display = 'none');
     document.querySelectorAll('.btn-map').forEach(b => b.style.display = 'inline-block');
+    // Show sorting controls when switching to gallery view
+    document.body.classList.remove('gallery-map-visible');
     // Update URL to base '/' (SPA style)
     const url = new URL(window.location);
     let base = url.pathname.replace(/\/map$/, '').replace(/\/gallery$/, '').replace(/\/+$/, '');
