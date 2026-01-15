@@ -88,8 +88,28 @@ let mapMarkersLayer = null;
 let europeBounds = null;
 
 // DOM elements (cached)
+
 // Sorting state
 let currentSort = { field: "date", direction: "desc" };
+const SORT_CACHE_KEY = 'gallery_sort_options_v1';
+
+function saveSortOptions() {
+  try {
+    localStorage.setItem(SORT_CACHE_KEY, JSON.stringify(currentSort));
+  } catch (e) {}
+}
+
+function loadSortOptions() {
+  try {
+    const raw = localStorage.getItem(SORT_CACHE_KEY);
+    if (!raw) return;
+    const opts = JSON.parse(raw);
+    if (opts && typeof opts === 'object') {
+      if (opts.field) currentSort.field = opts.field;
+      if (opts.direction) currentSort.direction = opts.direction;
+    }
+  } catch (e) {}
+}
 
 // Add sorting controls UI
 function createSortControls() {
@@ -121,13 +141,19 @@ function createSortControls() {
   } else {
     document.body.insertBefore(controls, document.body.firstChild);
   }
+  // Set initial values from cache if present
+  loadSortOptions();
+  controls.querySelector("#sort-field").value = currentSort.field;
+  controls.querySelector("#sort-direction").value = currentSort.direction;
   // Bind events
   controls.querySelector("#sort-field").addEventListener("change", function() {
     currentSort.field = this.value;
+    saveSortOptions();
     buildGalleryPaginated(currentPage);
   });
   controls.querySelector("#sort-direction").addEventListener("change", function() {
     currentSort.direction = this.value;
+    saveSortOptions();
     buildGalleryPaginated(currentPage);
   });
 }
@@ -268,6 +294,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (mapEl && mapEl.style.display === 'block' && window.galleryMap) {
       generateMapMarkers(filteredPhotos.length ? filteredPhotos : photos);
     }
+
+    // After all photos are loaded, apply the current sorting
+    buildGalleryPaginated(currentPage);
   } catch (err) {
     console.error("Error fetching Zenodo photos:", err);
     // footer messages removed per request
