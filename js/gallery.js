@@ -1,17 +1,44 @@
 // --- Zenodo hits cache helpers ---
+// Show a temporary, self-disappearing warning message
+function showTemporaryWarning(message, duration = 4000) {
+  let warnEl = document.getElementById('gallery-temp-warning');
+  if (!warnEl) {
+    warnEl = document.createElement('div');
+    warnEl.id = 'gallery-temp-warning';
+    warnEl.className = 'gallery-temp-warning';
+    document.body.appendChild(warnEl);
+  }
+  warnEl.textContent = message;
+  warnEl.style.display = 'block';
+  setTimeout(() => { warnEl.classList.add('visible'); }, 10);
+  setTimeout(() => {
+    warnEl.classList.remove('visible');
+    setTimeout(() => { warnEl.style.display = 'none'; }, 600);
+  }, duration);
+}
 const ZENODO_CACHE_KEY = 'zenodo_hits_cache_v1';
+const ZENODO_CACHE_TIMESTAMP_KEY = 'zenodo_hits_cache_timestamp_v1';
+const ZENODO_CACHE_MAX_AGE_MS = 15 * 24 * 60 * 60 * 1000; // 15 days
+
 function loadZenodoCache() {
   try {
     const raw = localStorage.getItem(ZENODO_CACHE_KEY);
-    if (!raw) return {};
-    return JSON.parse(raw);
+    const ts = localStorage.getItem(ZENODO_CACHE_TIMESTAMP_KEY);
+    if (!raw || !ts) return { expired: true, cache: {} };
+    const cache = JSON.parse(raw);
+    const age = Date.now() - parseInt(ts, 10);
+    if (isNaN(age) || age > ZENODO_CACHE_MAX_AGE_MS) {
+      return { expired: true, cache };
+    }
+    return { expired: false, cache };
   } catch (e) {
-    return {};
+    return { expired: true, cache: {} };
   }
 }
 function saveZenodoCache(cache) {
   try {
     localStorage.setItem(ZENODO_CACHE_KEY, JSON.stringify(cache));
+    localStorage.setItem(ZENODO_CACHE_TIMESTAMP_KEY, String(Date.now()));
   } catch (e) {}
 }
 
@@ -133,6 +160,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       totalRecords = 0;
       showTopProgressBar();
     } else {
+      // Check cache status for warning messages
+      const { expired, cache } = loadZenodoCache();
+      const cacheIsEmpty = Object.keys(cache).length === 0;
+      if (cacheIsEmpty) {
+        showTemporaryWarning("Welcome! We're loading the photo gallery for the first time. This may take a bit longer than usual. Thank you for your patience.", 5000);
+      } else if (expired) {
+        showTemporaryWarning("Checking for new photo updates. This may take a moment while we refresh the gallery. Thank you for your patience.", 5000);
+      }
+
       // Fetch total count first (fast, size=0)
       try {
         totalRecords = await fetchTotalCount(["euraf-media"]);
@@ -194,11 +230,12 @@ async function fetchZenodoPhotosIncremental(communities) {
     return [];
   }
 
-  let zenodoCache = loadZenodoCache();
+  const { expired, cache: zenodoCache } = loadZenodoCache();
   let stopFetching = false;
   let allPhotosCount = 0;
-  // Start with all cached records (in order of most recent first)
-  let cachedIds = Object.keys(zenodoCache);
+
+  // Only use cache if not expired
+  let cachedIds = expired ? [] : Object.keys(zenodoCache);
   let cachedPhotos = cachedIds.map(id => zenodoCache[id]);
   // Sort cachedPhotos by publication date descending (most recent first)
   cachedPhotos.sort((a, b) => {
@@ -215,26 +252,30 @@ async function fetchZenodoPhotosIncremental(communities) {
   });
 
   for (const community of communities) {
-    // First, fetch the first hit (size=1) to check if it's in cache
-    let firstUrl = `https://zenodo.org/api/records?size=1&sort=mostrecent&communities=${community}&type=image`;
-    let firstResponse;
-    try {
-      firstResponse = await fetch(firstUrl);
-    } catch (err) {
-      console.error("Network error while fetching first record:", firstUrl, err);
-      continue;
+    // If cache is expired, always fetch; otherwise, check first hit against cache
+    let skipFurtherFetching = false;
+    if (!expired) {
+      let firstUrl = `https://zenodo.org/api/records?size=1&sort=mostrecent&communities=${community}&type=image`;
+      let firstResponse;
+      try {
+        firstResponse = await fetch(firstUrl);
+      } catch (err) {
+        console.error("Network error while fetching first record:", firstUrl, err);
+        continue;
+      }
+      if (!firstResponse.ok) {
+        console.error(`Failed to fetch ${firstUrl}: ${firstResponse.status}`);
+        continue;
+      }
+      const firstData = await firstResponse.json();
+      const firstHit = firstData.hits?.hits?.[0];
+      if (firstHit && zenodoCache[firstHit.id]) {
+        // All records are already cached, skip further fetching
+        console.debug("First hit already in cache, using cached records only.");
+        skipFurtherFetching = true;
+      }
     }
-    if (!firstResponse.ok) {
-      console.error(`Failed to fetch ${firstUrl}: ${firstResponse.status}`);
-      continue;
-    }
-    const firstData = await firstResponse.json();
-    const firstHit = firstData.hits?.hits?.[0];
-    if (firstHit && zenodoCache[firstHit.id]) {
-      // All records are already cached, skip further fetching
-      console.debug("First hit already in cache, using cached records only.");
-      break;
-    }
+    if (skipFurtherFetching) break;
 
     // Otherwise, fetch in batches of 10
     let apiUrl = `https://zenodo.org/api/records?size=10&sort=mostrecent&communities=${community}&type=image`;
