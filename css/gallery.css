@@ -590,6 +590,22 @@ body {
     display: none !important;
   }
 }
+
+#refresh-gallery-btn {
+  background-color: #f0f4f8;
+  color: #253d5b;
+  font-size: 1rem;
+  padding: 4px 8px;
+  border: 1px solid #b6e2c6;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
 .sticky-btn,
 .sticky-btn-right {
   position: fixed;

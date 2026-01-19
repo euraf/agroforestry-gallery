@@ -1,3 +1,21 @@
+// --- LocalStorage full update button handler ---
+function fullUpdateLocalStoragePhotos() {
+  // Remove all gallery-related localStorage keys
+  localStorage.removeItem('galleryPhotos');
+  localStorage.removeItem('zenodo_hits_cache_v1');
+  localStorage.removeItem('zenodo_hits_cache_timestamp_v1');
+  localStorage.removeItem('gallery_sort_options_v1');
+  // Optionally, reload the page to trigger a fresh load
+  showTemporaryWarning('LocalStorage photos cleared. Reloading...');
+  setTimeout(function() { location.reload(); }, 1200);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  var updateBtn = document.getElementById('update-localstorage-btn');
+  if (updateBtn) {
+    updateBtn.addEventListener('click', fullUpdateLocalStoragePhotos);
+  }
+});
 // --- Zenodo hits cache helpers ---
 // Show a temporary, self-disappearing warning message
 function showTemporaryWarning(message, duration = 4000) {
@@ -143,6 +161,10 @@ function createSortControls() {
           <option value="4">4</option>
           <option value="5">5</option>
         </select>
+        <button id="refresh-gallery-btn" type="button">
+          <span class="sticky-btn-icon" style="font-size:1.2em;">&#x21bb;</span>
+          <span class="sticky-btn-text">Refresh gallery</span>
+        </button>
       </div>
     </div>
   `;
@@ -157,6 +179,11 @@ function createSortControls() {
     gallery.parentNode.insertBefore(controls, gallery);
   } else {
     document.body.insertBefore(controls, document.body.firstChild);
+  }
+  // Add event listener for refresh button
+  const refreshBtn = controls.querySelector('#refresh-gallery-btn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', fullUpdateLocalStoragePhotos);
   }
   // Set initial values from cache if present
   loadSortOptions();
