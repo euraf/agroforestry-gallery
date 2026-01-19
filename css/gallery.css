@@ -641,6 +641,7 @@ img {
   border-radius: 5px;
 }
 
+
 /* Masonry Grid using CSS columns */
 .grid {
   column-count: 1;
@@ -667,7 +668,9 @@ img {
   }
 }
 .grid-item {
-  display: inline-block;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   width: 100%;
   margin: 0 0 0.5em 0;
   break-inside: avoid;
@@ -677,6 +680,46 @@ img {
 }
 .grid-sizer {
   display: none;
+}
+
+/* Center photo and globe icon in single column (mobile) */
+@media (max-width: 600px) {
+  .grid-item {
+    align-items: center;
+    justify-content: center;
+  }
+  .photo-img-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    max-width: 350px;
+    margin: 0 auto;
+    position: relative;
+  }
+  .photo-img-wrapper img {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    height: auto;
+    border-radius: 5px;
+    position: relative;
+    z-index: 1;
+  }
+  .photo-img-wrapper {
+    position: relative;
+  }
+  .photo-img-wrapper img {
+    position: relative;
+    z-index: 1;
+  }
+  .photo-img-wrapper .globe-bottom-right {
+    position: absolute;
+    bottom: 3px;
+    right: 3px;
+    z-index: 2;
+    font-size: 1.2em;
+    pointer-events: auto;
+  }
 }
 
 .action-icon {
@@ -805,7 +848,7 @@ img {
   position: relative;
 }
 
-.globe-top-right {
+.globe-bottom-right {
   position: absolute;
   bottom: 3px;
   right: 3px;
@@ -813,7 +856,7 @@ img {
   font-size: 0.8rem;
   text-decoration: none;
 }
-.globe-top-right:hover {
+.globe-bottom-right:hover {
   text-decoration: none;
 }
 

@@ -605,7 +605,7 @@ function appendPhotosToGallery(newPhotos) {
         const lonDD = photo.metadata.custom["dwc:decimalLongitude"]?.[0];
         if (latDD && lonDD) {
           const photoLink2Gmap = BuildLink2Gmap(lonDD, latDD);
-          htmlCoords = `<a href="${photoLink2Gmap}" target="_blank" class="icon-overlay globe-top-right">&#127757;</a>`;
+          htmlCoords = `<a href="${photoLink2Gmap}" target="_blank" class="icon-overlay globe-bottom-right">&#127757;</a>`;
         }
       }
 
