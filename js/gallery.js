@@ -18,7 +18,7 @@ function showTemporaryWarning(message, duration = 4000) {
 }
 const ZENODO_CACHE_KEY = 'zenodo_hits_cache_v1';
 const ZENODO_CACHE_TIMESTAMP_KEY = 'zenodo_hits_cache_timestamp_v1';
-const ZENODO_CACHE_MAX_AGE_MS = 15 * 24 * 60 * 60 * 1000; // 15 days
+const ZENODO_CACHE_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
 
 function loadZenodoCache() {
   try {
