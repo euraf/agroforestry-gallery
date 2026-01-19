@@ -123,15 +123,28 @@ function createSortControls() {
   controls.id = "gallery-sort-controls";
   controls.className = "gallery-sort-controls mb-2";
   controls.innerHTML = `
-    <label for="sort-field" class="mb-0">Sort by:</label>
-    <select id="sort-field" class="form-select form-select-sm me-2 gallery-sort-dropdown" style="width:auto;display:inline-block;">
-      <option value="date">Date</option>
-      <option value="title">Title</option>
-    </select>
-    <select id="sort-direction" class="form-select form-select-sm gallery-sort-dropdown" style="width:auto;display:inline-block;">
-      <option value="desc">Descending</option>
-      <option value="asc">Ascending</option>
-    </select>
+    <div class="sort-row sort-row-main">
+      <div class="sort-left-group">
+        <label for="sort-field" class="mb-0">Sort by:</label>
+        <select id="sort-field" class="form-select form-select-sm me-2 gallery-sort-dropdown" style="width:auto;display:inline-block;">
+          <option value="date">Date</option>
+          <option value="title">Title</option>
+        </select>
+        <button id="sort-arrow-btn" class="gallery-sort-arrow-btn" title="Toggle sort direction" type="button" style="margin-left:4px;">
+          <span id="sort-arrow-icon">${currentSort.direction === 'asc' ? '▲' : '▼'}</span>
+        </button>
+      </div>
+      <div class="sort-right-group">
+        <label for="gallery-columns" class="mb-0 ml-3">Columns:</label>
+        <select id="gallery-columns" class="form-select form-select-sm gallery-sort-dropdown" style="width:auto;display:inline-block;min-width:60px;">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+        </select>
+      </div>
+    </div>
   `;
   // Insert inside #wrapper > .container if possible
   const wrapper = document.getElementById("wrapper");
@@ -148,18 +161,52 @@ function createSortControls() {
   // Set initial values from cache if present
   loadSortOptions();
   controls.querySelector("#sort-field").value = currentSort.field;
-  controls.querySelector("#sort-direction").value = currentSort.direction;
+  // Set initial columns from localStorage or default
+  const colSel = controls.querySelector("#gallery-columns");
+  let savedCols = localStorage.getItem('gallery_column_count');
+  if (!savedCols) {
+    // Set initial columns based on device width
+    let initialCols = 3;
+    if (window.innerWidth < 500) initialCols = 1;
+    else if (window.innerWidth < 900) initialCols = 2;
+    else if (window.innerWidth < 1200) initialCols = 3;
+    else if (window.innerWidth < 1600) initialCols = 4;
+    else initialCols = 5;
+    colSel.value = initialCols;
+    setGalleryColumns(initialCols);
+    localStorage.setItem('gallery_column_count', initialCols);
+  } else {
+    colSel.value = savedCols;
+    setGalleryColumns(parseInt(colSel.value, 10));
+  }
+
   // Bind events
   controls.querySelector("#sort-field").addEventListener("change", function() {
     currentSort.field = this.value;
     saveSortOptions();
     buildGalleryPaginated(currentPage);
   });
-  controls.querySelector("#sort-direction").addEventListener("change", function() {
-    currentSort.direction = this.value;
+  // Arrow button for sort direction
+  const sortArrowBtn = controls.querySelector('#sort-arrow-btn');
+  const sortArrowIcon = controls.querySelector('#sort-arrow-icon');
+  sortArrowBtn.addEventListener('click', function() {
+    currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    sortArrowIcon.textContent = currentSort.direction === 'asc' ? '▲' : '▼';
     saveSortOptions();
     buildGalleryPaginated(currentPage);
   });
+  colSel.addEventListener("change", function() {
+    localStorage.setItem('gallery_column_count', this.value);
+    setGalleryColumns(parseInt(this.value, 10));
+  });
+}
+
+// Set the number of columns for the gallery grid
+function setGalleryColumns(n) {
+  const grid = document.getElementById('gallery');
+  if (!grid) return;
+  grid.classList.remove('columns-1','columns-2','columns-3','columns-4','columns-5');
+  grid.classList.add('columns-' + n);
 }
 
 const gallery = document.getElementById("gallery");
