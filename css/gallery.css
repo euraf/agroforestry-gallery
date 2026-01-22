@@ -75,7 +75,7 @@ body.gallery-map-visible #gallery-sort-controls {
   font-size: 0.8rem;
   background: #fff url('data:image/svg+xml;utf8,<svg fill="%23008b00" height="18" viewBox="0 0 24 24" width="18" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>') no-repeat right 0.9rem center/1.1em;
   appearance: none;
-  min-width: 100px;
+  min-width: 120px;
   box-shadow: 0 2px 8px rgba(0,139,0,0.07);
   transition: border-color 0.2s, box-shadow 0.2s;
   color: #253d5b;
