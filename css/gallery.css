@@ -1,3 +1,105 @@
+/* Slideshow button styles */
+.btn-slideshow {
+  background: #f5f5f5;
+  color: #253d5b;
+  border: 1px solid #b0b0b0;
+  margin-left: 0.5em;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-slideshow:hover, .btn-slideshow:focus {
+  background: #eafbe7;
+  color: #008b00;
+}
+
+/* Slideshow overlay styles */
+#slideshow-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.95);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+#slideshow-overlay .slideshow-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  padding: 0;
+}
+#slideshow-img {
+  width: 100vw;
+  height: 100vh;
+  object-fit: contain;
+  border-radius: 0;
+  box-shadow: none;
+  margin-bottom: 0;
+  background: #111;
+  display: block;
+}
+#slideshow-prev, #slideshow-next, #slideshow-exit {
+  position: absolute;
+  z-index: 2;
+  background: #fff;
+  border: none;
+  font-size: 2em;
+  padding: 0.2em 0.5em;
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: auto;
+}
+#slideshow-overlay.show-controls #slideshow-prev,
+#slideshow-overlay.show-controls #slideshow-next,
+#slideshow-overlay.show-controls #slideshow-exit {
+  opacity: 0.7;
+}
+#slideshow-prev:hover, #slideshow-next:hover, #slideshow-exit:hover {
+  opacity: 1 !important;
+}
+#slideshow-prev {
+  left: 2vw;
+  top: 50%;
+  transform: translateY(-50%);
+}
+#slideshow-next {
+  right: 2vw;
+  top: 50%;
+  transform: translateY(-50%);
+}
+#slideshow-exit {
+  top: 2vh;
+  right: 2vw;
+  background: none;
+  color: #fff;
+}
+#slideshow-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  color: #fff;
+  background: rgba(0,0,0,0.65);
+  padding: 1em 2vw 1.2em 2vw;
+  font-size: 1.35em;
+  font-weight: 600;
+  text-align: center;
+  max-width: 100vw;
+  word-break: break-word;
+  letter-spacing: 0.02em;
+  z-index: 3;
+  border-bottom-left-radius: 0.5em;
+  border-bottom-right-radius: 0.5em;
+  box-shadow: 0 -2px 16px #0008;
+}
 /* Hide info box break on small devices */
 .info-break { display: inline; }
 @media (max-width: 600px) {

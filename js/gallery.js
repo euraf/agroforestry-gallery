@@ -1,6 +1,8 @@
 // Debug mode - set to true to prevent API calls to Zenodo
 const DEBUG_MODE = false;
 
+const SECONDS_PER_SLIDE = 5
+
 const albumKeywords = [
   "Silvopastoral",
   "Silvoarable",
@@ -1235,6 +1237,136 @@ async function loadAboutContent() {
     modalBody.innerHTML = '<p>Unable to load content. Please visit our <a href="https://github.com/euraf/agroforestry-gallery" target="_blank">GitHub repository</a> for more information.</p>';
   }
 }
+
+// --- SLIDESHOW FEATURE ---
+// Add event listeners for both slideshow buttons
+['open-slideshow-sm', 'open-slideshow-lg'].forEach(id => {
+  const btn = document.getElementById(id);
+  if (btn) {
+    btn.addEventListener('click', () => startSlideshow(filteredPhotos));
+  }
+});
+
+function startSlideshow(photos) {
+  if (!photos || !photos.length) {
+    showTemporaryWarning('No photos to show in slideshow.');
+    return;
+  }
+
+  // Create overlay if not exists
+  let overlay = document.getElementById('slideshow-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'slideshow-overlay';
+    overlay.innerHTML = `
+      <div class="slideshow-content">
+        <img id="slideshow-img" src="" alt="Slideshow Photo" />
+        <button id="slideshow-prev" title="Previous">&#8592;</button>
+        <button id="slideshow-next" title="Next">&#8594;</button>
+        <button id="slideshow-exit" title="Exit">&times;</button>
+        <div id="slideshow-caption"></div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+  // Show controls initially
+  overlay.classList.add('show-controls');
+  if (overlay.requestFullscreen) {
+    overlay.requestFullscreen();
+  } else if (overlay.webkitRequestFullscreen) {
+    overlay.webkitRequestFullscreen();
+  } else if (overlay.msRequestFullscreen) {
+    overlay.msRequestFullscreen();
+  }
+
+  // Hide controls after inactivity
+  let controlsTimeout;
+  function showControls() {
+    overlay.classList.add('show-controls');
+    clearTimeout(controlsTimeout);
+    controlsTimeout = setTimeout(() => {
+      overlay.classList.remove('show-controls');
+    }, 2000);
+  }
+  overlay.addEventListener('mousemove', showControls);
+  overlay.addEventListener('mousedown', showControls);
+  overlay.addEventListener('touchstart', showControls);
+  // Always show on keyboard nav
+  overlay.addEventListener('keydown', showControls);
+
+  let idx = 0;
+  let autoAdvanceTimer = null;
+  function showPhoto(i, resetTimer = true) {
+    // Loop: wrap index
+    if (i < 0) idx = photos.length - 1;
+    else if (i >= photos.length) idx = 0;
+    else idx = i;
+    const photo = photos[idx];
+    const img = document.getElementById('slideshow-img');
+    // Try to use large image if available (Zenodo IIIF full/600)
+    let largeUrl = '';
+    if (photo.files && photo.files[0] && photo.id) {
+      const filename = photo.files[0].key;
+      largeUrl = `https://zenodo.org/api/iiif/record:${photo.id}:${filename}/full/600,/0/default.png`;
+    }
+    img.src = largeUrl || photo.image_url || photo.url || '';
+    img.alt = photo.title || '';
+    document.getElementById('slideshow-caption').textContent = photo.title || '';
+    if (resetTimer) startAutoAdvance();
+  }
+  function startAutoAdvance() {
+    if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+    autoAdvanceTimer = setTimeout(() => {
+      showPhoto(idx + 1, true);
+    }, SECONDS_PER_SLIDE * 1000);
+  }
+  function stopAutoAdvance() {
+    if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+  }
+  showPhoto(0);
+
+  // Button handlers
+  document.getElementById('slideshow-prev').onclick = () => { showPhoto(idx - 1, true); };
+  document.getElementById('slideshow-next').onclick = () => { showPhoto(idx + 1, true); };
+  document.getElementById('slideshow-exit').onclick = exitSlideshow;
+
+  function exitSlideshow() {
+    overlay.style.display = 'none';
+    overlay.classList.remove('show-controls');
+    stopAutoAdvance();
+    // Remove event listeners to avoid leaks
+    overlay.removeEventListener('mousemove', showControls);
+    overlay.removeEventListener('mousedown', showControls);
+    overlay.removeEventListener('touchstart', showControls);
+    overlay.removeEventListener('keydown', showControls);
+    overlay.removeEventListener('mousemove', pauseAndResume);
+    overlay.removeEventListener('mousedown', pauseAndResume);
+    overlay.removeEventListener('touchstart', pauseAndResume);
+    overlay.removeEventListener('keydown', pauseAndResume);
+    document.exitFullscreen?.();
+  }
+
+  // Pause auto-advance on user interaction, resume after
+  function pauseAndResume() {
+    stopAutoAdvance();
+    startAutoAdvance();
+  }
+  overlay.addEventListener('mousemove', pauseAndResume);
+  overlay.addEventListener('mousedown', pauseAndResume);
+  overlay.addEventListener('touchstart', pauseAndResume);
+  overlay.addEventListener('keydown', pauseAndResume);
+
+  // Keyboard navigation
+  overlay.tabIndex = 0;
+  overlay.focus();
+  overlay.onkeydown = (e) => {
+    if (e.key === 'ArrowLeft') showPhoto(idx - 1, true);
+    else if (e.key === 'ArrowRight') showPhoto(idx + 1, true);
+    else if (e.key === 'Escape') exitSlideshow();
+  };
+}
+
 
 /*********
  *  SORT CONTROLS
