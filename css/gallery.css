@@ -129,18 +129,7 @@ body.gallery-map-visible #gallery-sort-controls {
   opacity: 1;
   display: block;
 }
-/* --- Gallery filtering fade animation --- */
-.grid-item {
-  opacity: 1;
-  transition: opacity 0.45s cubic-bezier(.4,0,.2,1), visibility 0.45s cubic-bezier(.4,0,.2,1);
-  visibility: visible;
-}
-.grid-item.fading-out {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity 0.45s cubic-bezier(.4,0,.2,1), visibility 0.45s cubic-bezier(.4,0,.2,1);
-}
+
 /* --- Off-canvas/Drawer Panels --- */
 .drawer {
   position: fixed;
@@ -237,15 +226,7 @@ body.gallery-map-visible #gallery-sort-controls {
 .top-progress-bar.progress-complete {
   background: #28a745;
 }
-/* --- Gallery grid-item fade-in moved from JS --- */
-.grid-item-hidden {
-  opacity: 0;
-  transition: opacity 0.5s;
-}
-.grid-item {
-  opacity: 1;
-  transition: opacity 0.5s;
-}
+
 /* Root variables */
 :root {
   --dark-blue: #253d5b;
@@ -744,76 +725,40 @@ body {
   vertical-align: middle;
 }
 
-/* Images */
-img {
-  max-width: 100%;
-  display: block;
-  height: auto;
-  border-radius: 5px;
-}
 
-
+/* Isotope Masonry Grid Fixes */
 .grid {
-  column-gap: 0.5em;
-}
-.grid.columns-1 { column-count: 1; }
-.grid.columns-2 { column-count: 2; }
-.grid.columns-3 { column-count: 3; }
-.grid.columns-4 { column-count: 4; }
-.grid.columns-5 { column-count: 5; }
-.grid-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  position: relative;
   width: 100%;
-  margin: 0 0 0.5em 0;
-  break-inside: avoid;
-  vertical-align: top;
-  box-sizing: border-box;
-  padding: 2px;
 }
 .grid-sizer {
-  display: none;
+  width: 100%;
+}
+.grid.columns-1 .grid-sizer, .grid.columns-1 .grid-item { width: 100%; }
+.grid.columns-2 .grid-sizer, .grid.columns-2 .grid-item { width: 50%; }
+.grid.columns-3 .grid-sizer, .grid.columns-3 .grid-item { width: 33.3333%; }
+.grid.columns-4 .grid-sizer, .grid.columns-4 .grid-item { width: 25%; }
+.grid.columns-5 .grid-sizer, .grid.columns-5 .grid-item { width: 20%; }
+
+.grid-item {
+  box-sizing: border-box;
+  padding: 6px;
+  width: 100%;
+  /* For Isotope Masonry, width is set by .grid.columns-x .grid-item */
+  background: none;
 }
 
-/* Center photo and globe icon in single column (mobile) */
-@media (max-width: 600px) {
-  .grid-item {
-    align-items: center;
-    justify-content: center;
-  }
-  .photo-img-wrapper {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    max-width: 350px;
-    margin: 0 auto;
-    position: relative;
-  }
-  .photo-img-wrapper img {
-    display: block;
-    margin: 0 auto;
-    max-width: 100%;
-    height: auto;
-    border-radius: 5px;
-    position: relative;
-    z-index: 1;
-  }
-  .photo-img-wrapper {
-    position: relative;
-  }
-  .photo-img-wrapper img {
-    position: relative;
-    z-index: 1;
-  }
-  .photo-img-wrapper .globe-bottom-right {
-    position: absolute;
-    bottom: 3px;
-    right: 3px;
-    z-index: 2;
-    font-size: 1.2em;
-    pointer-events: auto;
-  }
+.grid .photo-img-wrapper {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.grid .img-fluid {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 5px;
 }
 
 .action-icon {
@@ -824,14 +769,6 @@ img {
 .action-label {
   vertical-align: middle;
 }
-
-img {
-  max-width: 100%;
-  display: block;
-  height: auto;
-  border-radius: 5px;
-}
-
 
 /* Extra space for pagination */
 .gallery-pagination {
