@@ -1,5 +1,7 @@
 # How to Upload Photos to the Agroforestry Gallery
 
+<span style="background-color: yellow;">Attention (15th March- 15th May 2026):</span> To those willing to submit your picture to EURAF2026 Conference Photo Contest, please add the additional keyword <span style="background-color: lightgrey;">"EURAF2026 Photo Contest"</span> (see section 6 below for details)
+
 📷 Photos in this gallery are [collected from Zenodo.org, thanks to the support of EURAF (European Agroforestry Federation)](https://zenodo.org/communities/euraf-media).
 
 To have your photo featured, please follow these simple steps:
