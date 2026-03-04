@@ -270,7 +270,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     } catch (err) {
         // Show a user-friendly error message if not already shown
-        showTemporaryWarning("Could not load the gallery (network or server error). Please check your connection and try again.", 7000);
+        showTemporaryWarning("Could not load the gallery (network or server error from Zenodo endpoint). Please check your connection and try again.", 7000);
         console.error("Error fetching Zenodo photos:", err);
     }
 })
