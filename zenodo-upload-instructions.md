@@ -31,7 +31,7 @@ Once you have an account, you can upload your photos.
     
 5.2 - "*Resource type*" select "**Image/Photo**"
 
-5.3 - In "*Title*" add text that will be used as **photo caption info**
+5.3 - In "*Title*" add text that will be used as **photo caption info** (Title should be explanatory of the contents. **DO NOT USE** generalist captions like "Agroforesty Photo 105")
 
 5.4 - Click on "*Add Creator*"
 
