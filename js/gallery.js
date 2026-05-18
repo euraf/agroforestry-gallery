@@ -1326,6 +1326,7 @@ function startSlideshow(photos) {
 
   let idx = 0;
   let autoAdvanceTimer = null;
+  let slideRequestId = 0;
   function showPhoto(i, resetTimer = true) {
     // Loop: wrap index
     if (i < 0) idx = photos.length - 1;
@@ -1333,16 +1334,37 @@ function startSlideshow(photos) {
     else idx = i;
     const photo = photos[idx];
     const img = document.getElementById('slideshow-img');
+    const caption = document.getElementById('slideshow-caption');
     // Try to use large image if available (Zenodo IIIF full/600)
     let largeUrl = '';
     if (photo.files && photo.files[0] && photo.id) {
       const filename = photo.files[0].key;
       largeUrl = `https://zenodo.org/api/iiif/record:${photo.id}:${filename}/full/600,/0/default.png`;
     }
-    img.src = largeUrl || photo.image_url || photo.url || '';
-    img.alt = photo.title || '';
-    document.getElementById('slideshow-caption').textContent = photo.title || '';
-    if (resetTimer) startAutoAdvance();
+    const nextSrc = largeUrl || photo.image_url || photo.url || '';
+    const nextAlt = photo.title || '';
+    const nextCaption = photo.title || '';
+    const requestId = ++slideRequestId;
+
+    // Keep image and caption synchronized by committing both only when the slide is ready.
+    const commitSlide = () => {
+      if (requestId !== slideRequestId) return;
+      img.src = nextSrc;
+      img.alt = nextAlt;
+      caption.textContent = nextCaption;
+      if (resetTimer) startAutoAdvance();
+    };
+
+    if (resetTimer) stopAutoAdvance();
+
+    if (nextSrc) {
+      const preload = new Image();
+      preload.onload = commitSlide;
+      preload.onerror = commitSlide;
+      preload.src = nextSrc;
+    } else {
+      commitSlide();
+    }
   }
   function startAutoAdvance() {
     if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
