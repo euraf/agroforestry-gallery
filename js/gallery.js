@@ -1276,6 +1276,14 @@ async function loadAboutContent() {
   }
 });
 
+function formatCreatorName(name) {
+  const raw = String(name || '').trim();
+  if (!raw) return '';
+  const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
+  if (parts.length < 2) return raw;
+  return `${parts.slice(1).join(' ')} ${parts[0]}`.replace(/\s+/g, ' ').trim();
+}
+
 function startSlideshow(photos) {
   if (!photos || !photos.length) {
     showTemporaryWarning('No photos to show in slideshow.');
@@ -1343,7 +1351,13 @@ function startSlideshow(photos) {
     }
     const nextSrc = largeUrl || photo.image_url || photo.url || '';
     const nextAlt = photo.title || '';
-    const nextCaption = photo.title || '';
+    const authorNames = (photo.metadata?.creators || [])
+      .map((c) => formatCreatorName(c.name))
+      .filter(Boolean)
+      .join('; ');
+    const nextCaption = authorNames
+      ? `${photo.title || ''} — by ${authorNames}`
+      : (photo.title || '');
     const requestId = ++slideRequestId;
 
     // Keep image and caption synchronized by committing both only when the slide is ready.
