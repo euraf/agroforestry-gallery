@@ -99,6 +99,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.querySelectorAll('.btn-gallery').forEach(b => b.style.display = 'inline-block');
         document.body.classList.add('gallery-map-visible');
         initGalleryMap();
+        if (window.galleryMap) {
+          setTimeout(() => window.galleryMap.invalidateSize(true), 0);
+        }
         // If zoom/center present, set map view after map is ready
         if (window.galleryMap && mapZoom && mapLat && mapLng) {
             window.galleryMap.setView([mapLat, mapLng], mapZoom);
@@ -704,6 +707,7 @@ function applyFilterValue(filterValue, skipUrlUpdate) {
   // render view and update UI
   buildGalleryPaginated(currentPage)
   updateTopProgress();
+  generateMapMarkers(filteredPhotos, { fitToMarkers: true })
   // Update URL parameter unless told not to
   if (!skipUrlUpdate) {
     setFilterInUrl(filterValue);
@@ -772,6 +776,10 @@ document.querySelectorAll('.btn-map').forEach(btn => {
     window.history.replaceState({}, '', url);
     // initialize map and generate markers for the current filtered set
     initGalleryMap();
+    if (window.galleryMap) {
+      // Ensure Leaflet recalculates viewport after un-hiding the map container.
+      setTimeout(() => window.galleryMap.invalidateSize(true), 0);
+    }
     // If restoring, set map view
     if (lastMapState && window.galleryMap) {
       window.galleryMap.setView([parseFloat(lastMapState.lat), parseFloat(lastMapState.lng)], parseInt(lastMapState.zoom));
@@ -896,7 +904,12 @@ function initGalleryMap() {
 }
 
 // Generate / refresh markers from a given photo list (defaults to photos array)
-function generateMapMarkers(list = photos) {
+function generateMapMarkers(list = photos, options = {}) {
+  const mapEl = document.getElementById("gallery-map");
+  const mapIsVisible = !!mapEl && mapEl.style.display !== "none";
+
+  // Avoid creating the map while hidden (it can produce an incorrect first render).
+  if (!window.galleryMap && !mapIsVisible) return;
   if (!window.galleryMap) initGalleryMap();
   if (!mapMarkersLayer)
     mapMarkersLayer = L.layerGroup().addTo(window.galleryMap);
@@ -966,8 +979,24 @@ function generateMapMarkers(list = photos) {
   // Fit view to markers or to Europe bounds, unless URL has zoom/center
   const url = new URL(window.location);
   const hasMapParams = url.searchParams.has('zoom') && url.searchParams.has('lat') && url.searchParams.has('lng');
-  if (!hasMapParams) {
+  const forceFitToMarkers = !!options.fitToMarkers;
+  if (forceFitToMarkers) {
     if (markers.length) {
+      const group = L.featureGroup(markers);
+      try {
+        window.galleryMap.fitBounds(group.getBounds().pad(0.15));
+      } catch (e) {
+        // ignore fit errors
+      }
+    } else if (europeBounds) {
+      // If the selected filter has no geotagged photos, keep a sensible Europe fallback.
+      window.galleryMap.fitBounds(europeBounds.pad(0.05));
+    }
+  } else if (!hasMapParams) {
+    if (!lastMapState && europeBounds) {
+      // First map entry defaults to Europe extent for a consistent initial experience.
+      window.galleryMap.fitBounds(europeBounds.pad(0.05));
+    } else if (markers.length) {
       const group = L.featureGroup(markers);
       try {
         window.galleryMap.fitBounds(group.getBounds().pad(0.15));
