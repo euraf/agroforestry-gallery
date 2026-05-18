@@ -24,6 +24,20 @@ The upload process involves:
 
 The Agroforestry Gallery can be easily embedded into other websites and projects using an iframe. The gallery is hosted at [https://euraf.github.io/agroforestry-gallery/](https://euraf.github.io/agroforestry-gallery/) and provides a complete, self-updating photo gallery that requires no maintenance from the host website. For detailed embedding instructions, code examples, and integration options, see the [`embedding-instructions.md`](https://github.com/euraf/agroforestry-gallery/blob/main/embedding-instructions.md) file.
 
+### Live Embedding Examples 🌍
+
+The gallery is already embedded in:
+
+- 🧩 DigitAF project website: [https://digitaf.eu/agroforestry-gallery/](https://digitaf.eu/agroforestry-gallery/)
+- 🧩 EURAF website: [https://euraf.net/gallery/](https://euraf.net/gallery/)
+
+### Current Use Cases 📸
+
+The gallery is also being used as:
+
+- 🌱 A project photo deposit for CAMBIUM: [https://ilvo.vlaanderen.be/en/research-projects/cambium-agroforestry-integrated](https://ilvo.vlaanderen.be/en/research-projects/cambium-agroforestry-integrated)
+- 🏆 The repository for the EURAF 2026 Conference Photo Contest: [https://www.instagram.com/p/DWjJFDbjflk/](https://www.instagram.com/p/DWjJFDbjflk/)
+
 ## Dynamic Instructions System
 
 The gallery employs a dynamic content loading system where all documentation and instructions are stored in Markdown files and automatically incorporated into the website interface using JavaScript. This approach provides a clean separation between content and code, allowing for:
