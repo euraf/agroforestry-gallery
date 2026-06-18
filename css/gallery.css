@@ -192,6 +192,20 @@ body.gallery-map-visible #gallery-sort-controls {
 .gallery-sort-dropdown:hover {
   border-color: #008b00;
 }
+.gallery-sort-input {
+  border: 1.5px solid #b0b0b0;
+  border-radius: 8px;
+  padding: 5px;
+  font-size: 0.8rem;
+  min-width: 70px;
+  box-shadow: 0 2px 8px rgba(0,139,0,0.07);
+  color: #253d5b;
+}
+.gallery-sort-input:focus {
+  border-color: #008b00;
+  box-shadow: 0 0 0 2px #b6e2c6;
+  outline: none;
+}
 .gallery-sort-arrow-btn {
   background: transparent;
   border: none;

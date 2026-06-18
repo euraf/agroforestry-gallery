@@ -1,7 +1,8 @@
 // Debug mode - set to true to prevent API calls to Zenodo
 const DEBUG_MODE = false;
 
-const SECONDS_PER_SLIDE = 5
+const DEFAULT_SECONDS_PER_SLIDE = 5
+const SLIDESHOW_INTERVAL_KEY = 'gallery_slideshow_interval_seconds_v1';
 
 const albumKeywords = [
   "Silvopastoral",
@@ -29,6 +30,7 @@ var currentPage = 1;
 const photosPerPage = 10000;
 var photos = [];
 var filteredPhotos = []; // <-- new: current filtered subset
+var displayedPhotos = []; // photos currently rendered in the gallery
 // currently active single filter (sanitized key) or null
 var currentActiveFilter = null;
 var totalVisualizations = 0;
@@ -1090,6 +1092,7 @@ function buildGalleryPaginated(page) {
   const startIdx = (page - 1) * photosPerPage;
   const endIdx = startIdx + photosPerPage;
   const paginated = sortedPhotos.slice(startIdx, endIdx);
+  displayedPhotos = paginated.slice();
   // Render sorted photos directly
   appendPhotosToGallery(paginated);
   // No need to call Isotope sort, since DOM order matches sort
@@ -1272,9 +1275,18 @@ async function loadAboutContent() {
 ['open-slideshow-sm', 'open-slideshow-lg'].forEach(id => {
   const btn = document.getElementById(id);
   if (btn) {
-    btn.addEventListener('click', () => startSlideshow(filteredPhotos));
+    btn.addEventListener('click', () => startSlideshow(getSlideshowPhotos()));
   }
 });
+
+function getSlideshowPhotos() {
+  // Prefer exactly what the user is currently seeing in the gallery.
+  if (Array.isArray(displayedPhotos) && displayedPhotos.length > 0) {
+    return displayedPhotos;
+  }
+  // Fallback for initial loading states.
+  return filteredPhotos;
+}
 
 function formatCreatorName(name) {
   const raw = String(name || '').trim();
@@ -1284,11 +1296,63 @@ function formatCreatorName(name) {
   return `${parts.slice(1).join(' ')} ${parts[0]}`.replace(/\s+/g, ' ').trim();
 }
 
+function getSlideshowIntervalSeconds() {
+  const raw = localStorage.getItem(SLIDESHOW_INTERVAL_KEY);
+  const parsed = Number(raw);
+  if (Number.isFinite(parsed) && parsed >= 1) {
+    return parsed;
+  }
+  return DEFAULT_SECONDS_PER_SLIDE;
+}
+
+function setSlideshowIntervalSeconds(seconds) {
+  const parsed = Number(seconds);
+  if (!Number.isFinite(parsed) || parsed < 1) return DEFAULT_SECONDS_PER_SLIDE;
+  const normalized = Math.round(parsed);
+  localStorage.setItem(SLIDESHOW_INTERVAL_KEY, String(normalized));
+  return normalized;
+}
+
+async function animateOpacity(element, from, to, durationMs) {
+  
+  if (!element) return;
+  const hasAnimate = typeof element.animate === 'function';
+  
+  if (hasAnimate) {
+    try {
+      await element
+        .animate(
+          [{ opacity: from }, { opacity: to }],
+          {
+            duration: durationMs,
+            easing: 'ease',
+            fill: 'forwards'
+          }
+        )
+        .finished;
+      return;
+    } catch (e) {
+      // Fallback below if animation is interrupted.
+    }
+  }
+
+  element.style.opacity = String(from);
+  element.style.transition = `opacity ${durationMs}ms ease`;
+  requestAnimationFrame(() => {
+    element.style.opacity = String(to);
+  });
+  await new Promise((resolve) => setTimeout(resolve, durationMs));
+}
+
+let slideshowSessionId = 0;
+
 function startSlideshow(photos) {
   if (!photos || !photos.length) {
     showTemporaryWarning('No photos to show in slideshow.');
     return;
   }
+
+  const sessionId = ++slideshowSessionId;
 
   // Create overlay if not exists
   let overlay = document.getElementById('slideshow-overlay');
@@ -1307,6 +1371,19 @@ function startSlideshow(photos) {
     document.body.appendChild(overlay);
   }
   overlay.style.display = 'flex';
+
+  // Clear previous run visual state so a reopened slideshow always starts clean.
+  const initialImg = document.getElementById('slideshow-img');
+  const initialCaption = document.getElementById('slideshow-caption');
+  if (initialImg) {
+    initialImg.removeAttribute('src');
+    initialImg.alt = 'Slideshow Photo';
+    initialImg.style.opacity = '0';
+  }
+  if (initialCaption) {
+    initialCaption.textContent = '';
+  }
+
   // Show controls initially
   overlay.classList.add('show-controls');
   if (overlay.requestFullscreen) {
@@ -1333,8 +1410,23 @@ function startSlideshow(photos) {
   overlay.addEventListener('keydown', showControls);
 
   let idx = 0;
+  let secondsPerSlide = getSlideshowIntervalSeconds();
   let autoAdvanceTimer = null;
   let slideRequestId = 0;
+  const fadeDurationMs = 500;
+
+  const intervalInput = document.getElementById('slideshow-interval');
+  if (intervalInput) {
+    intervalInput.value = String(secondsPerSlide);
+    intervalInput.onchange = () => {
+      const updated = setSlideshowIntervalSeconds(intervalInput.value);
+      secondsPerSlide = updated;
+      intervalInput.value = String(updated);
+      stopAutoAdvance();
+      startAutoAdvance();
+    };
+  }
+
   function showPhoto(i, resetTimer = true) {
     // Loop: wrap index
     if (i < 0) idx = photos.length - 1;
@@ -1361,11 +1453,27 @@ function startSlideshow(photos) {
     const requestId = ++slideRequestId;
 
     // Keep image and caption synchronized by committing both only when the slide is ready.
-    const commitSlide = () => {
+    const commitSlide = async () => {
+      if (sessionId !== slideshowSessionId) return;
       if (requestId !== slideRequestId) return;
+
+      const hasCurrentImage = !!img.getAttribute('src');
+      
+      if (hasCurrentImage) {
+        await animateOpacity(img, 1, 0, fadeDurationMs);
+        if (sessionId !== slideshowSessionId) return;
+        if (requestId !== slideRequestId) return;
+      } else {
+        img.style.opacity = '0';
+      }
+
       img.src = nextSrc;
       img.alt = nextAlt;
       caption.textContent = nextCaption;
+      await animateOpacity(img, 0, 1, fadeDurationMs);
+      if (sessionId !== slideshowSessionId) return;
+      if (requestId !== slideRequestId) return;
+
       if (resetTimer) startAutoAdvance();
     };
 
@@ -1384,7 +1492,7 @@ function startSlideshow(photos) {
     if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
     autoAdvanceTimer = setTimeout(() => {
       showPhoto(idx + 1, true);
-    }, SECONDS_PER_SLIDE * 1000);
+    }, Math.max(1, secondsPerSlide) * 1000);
   }
   function stopAutoAdvance() {
     if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
@@ -1397,6 +1505,8 @@ function startSlideshow(photos) {
   document.getElementById('slideshow-exit').onclick = exitSlideshow;
 
   function exitSlideshow() {
+    // Invalidate any in-flight image preload callbacks from this run.
+    slideshowSessionId++;
     overlay.style.display = 'none';
     overlay.classList.remove('show-controls');
     stopAutoAdvance();

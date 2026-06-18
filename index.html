@@ -27,7 +27,7 @@
   <!-- Leaflet.markercluster CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-  <link rel="stylesheet" href="css/gallery.css" />
+  <link rel="stylesheet" href="css/gallery.css?v=202606181519" />
   <style>
     /* quick override for popup image height (adjust if you want larger/smaller) */
     :root {
@@ -207,6 +207,8 @@
             </button>
           </div>
           <div class="sort-right-group">
+            <label for="slideshow-interval" class="mb-0 ml-3">Seconds/photo:</label>
+            <input id="slideshow-interval" type="number" min="1" step="1" class="form-control form-control-sm gallery-sort-input" style="width:78px;display:inline-block;" value="5" />
             <label for="gallery-columns" class="mb-0 ml-3">Columns:</label>
             <select id="gallery-columns" class="form-select form-select-sm gallery-sort-dropdown" style="width:auto;display:inline-block;min-width:60px;">
               <option value="1">1</option>
@@ -263,7 +265,7 @@
     </div>
   </noscript>
 
-  <script src="js/gallery.js" defer></script>
+  <script src="js/gallery.js?v=202606181519" defer></script>
   
 </body>
 
